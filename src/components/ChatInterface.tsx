@@ -63,7 +63,7 @@ export const ChatInterface = ({ messages, isThinking }: { messages: Message[], i
                 className="flex-1 px-4 lg:px-8 py-6 no-scrollbar"
                 onWheel={() => setAutoScroll(false)} // Stop auto-scroll on manual scroll
             >
-                <div className="max-w-4xl mx-auto space-y-8 pb-10">
+                <div className="max-w-4xl mx-auto space-y-8 pb-0">
                     {messages.length === 0 ? (
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
@@ -74,7 +74,9 @@ export const ChatInterface = ({ messages, isThinking }: { messages: Message[], i
                             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/10 to-purple-600/10 flex items-center justify-center border border-white/5 mb-8 group hover:border-blue-500/30 transition-all duration-500">
                                 <Sparkles className="w-8 h-8 text-blue-400 group-hover:scale-110 transition-transform" />
                             </div>
-                            <h1 className="text-5xl font-bold tracking-tighter text-white mb-3">JARVIS</h1>
+                            <h1 className="text-7xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-white to-neon-purple drop-shadow-[0_0_30px_rgba(0,210,255,0.3)] mb-3">
+                                JARVIS
+                            </h1>
                         </motion.div>
                     ) : (
                         <motion.div
@@ -128,7 +130,7 @@ export const ChatInterface = ({ messages, isThinking }: { messages: Message[], i
                             </div>
                         </motion.div>
                     )}
-                    <div ref={bottomRef} className="h-4" />
+                    <div ref={bottomRef} className="h-0" />
                 </div>
             </ScrollArea>
         </div>
@@ -170,14 +172,18 @@ const MessageItem = ({ message }: { message: Message }) => {
                 isUser ? "items-end" : "items-start"
             )}>
                 <div className={cn(
-                    "relative p-4 rounded-2xl glass transition-all",
+                    "relative p-4 rounded-2xl glass transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,210,255,0.1)]",
                     isUser
-                        ? "rounded-tr-none bg-blue-600/10 border-blue-500/20"
-                        : "rounded-tl-none bg-white/5 border-white/10 group-hover:border-neon-blue/30"
+                        ? "rounded-tr-none bg-blue-600/10 border-blue-500/20 hover:border-blue-500/40 hover:bg-blue-600/15"
+                        : "rounded-tl-none bg-white/5 border-white/10 group-hover:border-neon-blue/40 group-hover:bg-white/[0.08]"
                 )}>
                     {/* Neon Glow for AI messages */}
                     {!isUser && (
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500/0 via-purple-500/0 to-blue-500/0 rounded-2xl blur opacity-0 group-hover:opacity-20 transition duration-1000 group-hover:duration-200"></div>
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500/0 via-purple-500/0 to-blue-500/0 rounded-2xl blur opacity-0 group-hover:opacity-40 transition duration-500"></div>
+                    )}
+                    {/* Subtle Glow for User messages */}
+                    {isUser && (
+                        <div className="absolute -inset-0.5 bg-blue-500/0 rounded-2xl blur opacity-0 group-hover:opacity-20 transition duration-500 group-hover:bg-blue-500/10"></div>
                     )}
 
                     <div className="prose prose-invert prose-sm max-w-none">

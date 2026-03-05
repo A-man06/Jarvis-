@@ -20,16 +20,29 @@ export default function Home() {
   // Chat Logic
   const [messages, setMessages] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const sessionId = React.useMemo(() => 'home-' + Math.random().toString(36).slice(2, 9), []);
+  const [sessionId, setSessionId] = useState(() => 'home-' + Math.random().toString(36).slice(2, 9));
+  const [chatHistoryList, setChatHistoryList] = useState<{ id: string; title: string }[]>([
+    { id: "1", title: "Building a question-answering AI..." },
+    { id: "2", title: "Physiotherapy exercise AI model..." },
+    { id: "3", title: "Prerequisites for building JARVIS..." },
+  ]);
 
-  React.useEffect(() => {
-    fetch(`/api/history?sessionId=${sessionId}`)
-      .then(res => res.json())
-      .then(data => setMessages(data.messages || []));
-  }, [sessionId]);
+  const handleNewChat = () => {
+    setMessages([]);
+    setSessionId('home-' + Math.random().toString(36).slice(2, 9));
+    setIsLoading(false);
+  };
 
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
+
+    // Add to history list if it's the first message of a new session
+    if (messages.length === 0) {
+      setChatHistoryList(prev => [
+        { id: sessionId, title: content.slice(0, 40) + (content.length > 40 ? "..." : "") },
+        ...prev
+      ]);
+    }
 
     const userMsg = { id: Date.now().toString(), role: 'user', content, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
     setMessages(prev => [...prev, userMsg]);
@@ -109,6 +122,8 @@ export default function Home() {
         isCollapsed={isSidebarCollapsed}
         setIsCollapsed={setIsSidebarCollapsed}
         openSettings={() => setIsSettingsOpen(true)}
+        onNewChat={handleNewChat}
+        chats={chatHistoryList}
       />
 
       {/* Main Content Area */}

@@ -51,7 +51,7 @@ export const Header = ({ openAnalytics }: { openAnalytics: () => void }) => {
                     >
                         <div className="w-full h-full rounded-full bg-white/20 blur-[1px] animate-pulse" />
                     </motion.div>
-                    <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
+                    <span className="font-black text-xl tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-white to-neon-purple drop-shadow-[0_0_10px_rgba(0,210,255,0.3)]">
                         JARVIS
                     </span>
                 </div>

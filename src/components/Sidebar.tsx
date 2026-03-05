@@ -27,10 +27,11 @@ import {
     PanelLeft,
     Briefcase,
     MessageCircle,
-    Library,
-    Shapes,
-    Code2,
-    Download
+    Download,
+    Info,
+    User,
+    Sliders,
+    Library
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,26 +57,21 @@ interface SidebarProps {
     isCollapsed: boolean;
     setIsCollapsed: (value: boolean) => void;
     openSettings: () => void;
+    onNewChat: () => void;
+    chats: { id: string | number; title: string }[];
 }
 
-export const Sidebar = ({ isCollapsed, setIsCollapsed, openSettings }: SidebarProps) => {
+export const Sidebar = ({ isCollapsed, setIsCollapsed, openSettings, onNewChat, chats }: SidebarProps) => {
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTab, setActiveTab] = useState("Chats");
-
-    const chats = [
-        { id: 1, title: "Building a question-answering AI..." },
-        { id: 2, title: "Physiotherapy exercise AI model..." },
-        { id: 3, title: "Prerequisites for building JARVIS..." },
-    ];
+    const [isSearching, setIsSearching] = useState(false);
 
     const navItems = [
         { id: "new", icon: <Plus className="w-4.5 h-4.5" />, label: "New chat" },
         { id: "search", icon: <Search className="w-4.5 h-4.5" />, label: "Search" },
-        { id: "customize", icon: <Briefcase className="w-4.5 h-4.5" />, label: "Customize" },
+        { id: "customize", icon: <Sliders className="w-4.5 h-4.5" />, label: "Customize" },
         { id: "Chats", icon: <MessageCircle className="w-4.5 h-4.5" />, label: "Chats" },
         { id: "projects", icon: <Library className="w-4.5 h-4.5" />, label: "Projects" },
-        { id: "artifacts", icon: <Shapes className="w-4.5 h-4.5" />, label: "Artifacts" },
-        { id: "code", icon: <Code2 className="w-4.5 h-4.5" />, label: "Code" },
     ];
 
     return (
@@ -87,7 +83,13 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, openSettings }: SidebarPr
             {/* Header */}
             <div className="h-14 flex items-center justify-between px-3 flex-shrink-0">
                 {!isCollapsed && (
-                    <span className="text-xl font-semibold tracking-tight text-white/90 pl-2">JARVIS</span>
+                    <motion.span
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-white to-neon-purple pl-2 drop-shadow-[0_0_15px_rgba(0,210,255,0.5)]"
+                    >
+                        JARVIS
+                    </motion.span>
                 )}
                 <Tooltip>
                     <TooltipTrigger asChild>
@@ -114,7 +116,12 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, openSettings }: SidebarPr
                         <Tooltip key={item.id} delayDuration={isCollapsed ? 0 : 500}>
                             <TooltipTrigger asChild>
                                 <motion.div
-                                    onClick={() => setActiveTab(item.id)}
+                                    onClick={() => {
+                                        setActiveTab(item.id);
+                                        if (item.id === "new") onNewChat();
+                                        if (item.id === "customize") openSettings();
+                                        if (item.id === "search") setIsSearching(!isSearching);
+                                    }}
                                     className={cn(
                                         "flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition-all group",
                                         activeTab === item.id ? "bg-white/10 text-white" : "text-white/40 hover:text-white hover:bg-white/5",
@@ -144,16 +151,41 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, openSettings }: SidebarPr
                         </Tooltip>
                     ))}
 
+                    <AnimatePresence>
+                        {isSearching && !isCollapsed && (
+                            <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="px-3 overflow-hidden mt-1"
+                            >
+                                <div className="relative">
+                                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20" />
+                                    <Input
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        placeholder="Search history..."
+                                        className="h-8 bg-white/5 border-white/5 pl-8 text-[12px] placeholder:text-white/20 rounded-lg focus-visible:ring-neon-blue/20"
+                                    />
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
                     {!isCollapsed && (
-                        <div className="mt-8 px-3">
+                        <div className="mt-8 px-3 flex flex-col flex-1 min-h-0">
                             <p className="text-[10px] font-bold text-white/20 uppercase tracking-[0.1em] mb-4">Recents</p>
-                            <div className="space-y-1">
-                                {chats.map(chat => (
-                                    <div key={chat.id} className="text-[13px] text-white/50 hover:text-white transition-colors cursor-pointer truncate py-1.5 rounded-lg hover:bg-white/5 px-2 -mx-2">
-                                        {chat.title}
-                                    </div>
-                                ))}
-                            </div>
+                            <ScrollArea className="flex-1 -mx-2 px-2">
+                                <div className="space-y-1 pb-4">
+                                    {chats
+                                        .filter(chat => chat.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                                        .map(chat => (
+                                            <div key={chat.id} className="text-[13px] text-white/50 hover:text-white transition-colors cursor-pointer truncate py-1.5 rounded-lg hover:bg-white/5 px-2">
+                                                {chat.title}
+                                            </div>
+                                        ))}
+                                </div>
+                            </ScrollArea>
                         </div>
                     )}
                 </div>
@@ -161,32 +193,39 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, openSettings }: SidebarPr
 
             {/* Footer Section */}
             <div className="p-2 border-t border-white/5">
-                <div className={cn(
-                    "flex items-center justify-between p-2 rounded-xl hover:bg-white/5 transition-all group cursor-pointer",
-                    isCollapsed && "justify-center px-0"
-                )}>
-                    <div className="flex items-center gap-3 truncate">
-                        <Avatar className="w-8 h-8 flex-shrink-0 border border-white/10">
-                            <AvatarFallback className="bg-[#aca796] text-[#1c1c1c] text-xs font-bold font-mono">H</AvatarFallback>
-                        </Avatar>
-                        {!isCollapsed && (
-                            <div className="flex flex-col truncate">
-                                <span className="text-sm font-bold text-white/90 leading-tight">himesh</span>
-                                <span className="text-[11px] text-white/30 font-medium tracking-tight">Pro plan</span>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <div className={cn(
+                            "flex items-center justify-between p-2 rounded-xl hover:bg-white/5 transition-all group cursor-pointer",
+                            isCollapsed && "justify-center px-0"
+                        )}>
+                            <div className="flex items-center gap-3 truncate">
+                                <Avatar className="w-8 h-8 flex-shrink-0 border border-white/10">
+                                    <AvatarFallback className="bg-[#aca796] text-[#1c1c1c] text-xs font-bold font-mono">H</AvatarFallback>
+                                </Avatar>
+                                {!isCollapsed && (
+                                    <div className="flex flex-col truncate">
+                                        <span className="text-sm font-bold text-white/90 leading-tight">himesh</span>
+                                        <span className="text-[11px] text-white/30 font-medium tracking-tight">Pro plan</span>
+                                    </div>
+                                )}
                             </div>
-                        )}
-                    </div>
-                    {!isCollapsed && (
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-white/30 hover:text-white flex-shrink-0">
-                                    <Download className="w-4 h-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">Download</TooltipContent>
-                        </Tooltip>
-                    )}
-                </div>
+                            {!isCollapsed && <Settings className="w-4 h-4 text-white/20 group-hover:text-white transition-colors" />}
+                        </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56 glass-dark border-white/10 text-white p-1 mb-2">
+                        <DropdownMenuItem className="focus:bg-white/10 rounded-lg cursor-pointer flex items-center gap-2 py-2" onClick={openSettings}>
+                            <Settings className="w-4 h-4" /> Settings
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="focus:bg-white/10 rounded-lg cursor-pointer flex items-center gap-2 py-2">
+                            <Info className="w-4 h-4" /> About
+                        </DropdownMenuItem>
+                        <Separator className="bg-white/5 my-1" />
+                        <DropdownMenuItem className="focus:bg-white/10 rounded-lg cursor-pointer flex items-center gap-2 py-2 text-red-400 focus:text-red-300">
+                            <LogOut className="w-4 h-4" /> Logout
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
         </motion.aside>
     );

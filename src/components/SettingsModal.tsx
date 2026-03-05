@@ -11,9 +11,10 @@ import {
     Trash2,
     Globe,
     Lock,
-    Moon,
-    Sun,
-    Monitor
+    Monitor,
+    Brain,
+    Bot,
+    Sparkles
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 export const SettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
     return (
@@ -49,6 +51,7 @@ export const SettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: (
                             <Tabs defaultValue="account" orientation="vertical" className="flex-1 flex flex-col md:flex-row">
                                 <TabsList className="flex flex-row md:flex-col h-auto bg-white/5 p-2 rounded-none md:w-[200px] gap-1">
                                     <TabTrigger value="account" icon={<User className="w-4 h-4" />} label="Account" />
+                                    <TabTrigger value="ai" icon={<Brain className="w-4 h-4" />} label="AI Model" />
                                     <TabTrigger value="api" icon={<Key className="w-4 h-4" />} label="API Keys" />
                                     <TabTrigger value="theme" icon={<Palette className="w-4 h-4" />} label="Appearance" />
                                     <TabTrigger value="security" icon={<Shield className="w-4 h-4" />} label="Data & Privacy" />
@@ -59,11 +62,11 @@ export const SettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                         <div className="space-y-4">
                                             <div className="flex flex-col gap-2">
                                                 <label className="text-xs font-bold text-white/40 uppercase tracking-widest">Public Name</label>
-                                                <Input placeholder="Aman Gupta" className="bg-white/5 border-white/10" />
+                                                <Input placeholder="himesh" className="bg-white/5 border-white/10" />
                                             </div>
                                             <div className="flex flex-col gap-2">
                                                 <label className="text-xs font-bold text-white/40 uppercase tracking-widest">Email Address</label>
-                                                <Input placeholder="aman@example.com" disabled className="bg-white/5 border-white/10 opacity-50" />
+                                                <Input placeholder="himesh@example.com" disabled className="bg-white/5 border-white/10 opacity-50" />
                                             </div>
                                         </div>
                                         <Separator className="bg-white/10" />
@@ -73,6 +76,27 @@ export const SettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: (
                                                 <span className="text-xs text-neon-blue">Diamond Tier - Life Membership</span>
                                             </div>
                                             <Button variant="outline" className="border-neon-blue/30 text-neon-blue hover:bg-neon-blue/10">Manage</Button>
+                                        </div>
+                                    </TabsContent>
+
+                                    <TabsContent value="ai" className="space-y-6 mt-0">
+                                        <div className="space-y-4">
+                                            <div className="flex flex-col gap-3">
+                                                <label className="text-xs font-bold text-white/40 uppercase tracking-widest">Core Intelligence</label>
+                                                <div className="grid grid-cols-1 gap-2">
+                                                    <AIModelOption
+                                                        icon={<Sparkles className="w-4 h-4 text-blue-400" />}
+                                                        title="JARVIS-4 Ultra"
+                                                        description="Most capable model for complex reasoning"
+                                                        active
+                                                    />
+                                                    <AIModelOption
+                                                        icon={<Bot className="w-4 h-4 text-purple-400" />}
+                                                        title="JARVIS-3.5 Turbo"
+                                                        description="Blazing fast for everyday tasks"
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     </TabsContent>
 
@@ -148,4 +172,20 @@ const TabTrigger = ({ value, icon, label }: TabTriggerProps) => (
         {icon}
         {label}
     </TabsTrigger>
+);
+
+const AIModelOption = ({ icon, title, description, active = false }: { icon: React.ReactNode; title: string; description: string; active?: boolean }) => (
+    <div className={cn(
+        "flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-all border",
+        active ? "bg-white/10 border-white/20 shadow-xl" : "bg-transparent border-white/5 hover:bg-white/5 hover:border-white/10"
+    )}>
+        <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10">
+            {icon}
+        </div>
+        <div className="flex-1 flex flex-col gap-0.5">
+            <span className="text-sm font-bold">{title}</span>
+            <span className="text-xs text-white/40">{description}</span>
+        </div>
+        {active && <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]" />}
+    </div>
 );

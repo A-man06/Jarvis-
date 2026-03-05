@@ -136,7 +136,16 @@
   }
 
   .glass-dark {
-    @apply bg-black/40 backdrop-blur-2xl border border-white/5;
+    @apply bg-black/60 backdrop-blur-3xl border border-white/10;
+  }
+
+  .hover-glow {
+    @apply transition-all duration-300;
+  }
+
+  .hover-glow:hover {
+    box-shadow: 0 0 20px rgba(0, 210, 255, 0.15);
+    @apply border-white/20;
   }
 
   .neon-border {
