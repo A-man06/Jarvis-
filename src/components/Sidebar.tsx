@@ -52,17 +52,22 @@ import {
 } from "@/components/ui/tooltip";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { auth, db } from "@/lib/firebase";
+import { onAuthStateChanged, User as FirebaseUser, signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
 interface SidebarProps {
     isCollapsed: boolean;
     setIsCollapsed: (value: boolean) => void;
     openSettings: () => void;
+    openAuth: () => void;
     onNewChat: () => void;
+    onSelectChat: (id: string, title: string) => void;
     chats: { id: string | number; title: string }[];
+    user: FirebaseUser | null;
 }
 
-export const Sidebar = ({ isCollapsed, setIsCollapsed, openSettings, onNewChat, chats }: SidebarProps) => {
+export const Sidebar = ({ isCollapsed, setIsCollapsed, openSettings, openAuth, onNewChat, onSelectChat, chats, user }: SidebarProps) => {
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTab, setActiveTab] = useState("Chats");
@@ -88,7 +93,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, openSettings, onNewChat, 
                     <motion.span
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className="text-2xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-white to-neon-purple pl-2 drop-shadow-[0_0_15px_rgba(0,210,255,0.5)]"
+                        className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-white to-neon-purple pl-2 drop-shadow-[0_0_25px_rgba(0,210,255,0.7)]"
                     >
                         JARVIS
                     </motion.span>
@@ -182,7 +187,11 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, openSettings, onNewChat, 
                                     {chats
                                         .filter(chat => chat.title.toLowerCase().includes(searchQuery.toLowerCase()))
                                         .map(chat => (
-                                            <div key={chat.id} className="text-[13px] text-white/50 hover:text-white transition-colors cursor-pointer truncate py-1.5 rounded-lg hover:bg-white/5 px-2">
+                                            <div
+                                                key={chat.id}
+                                                onClick={() => onSelectChat(chat.id.toString(), chat.title)}
+                                                className="text-[13px] text-white/50 hover:text-white transition-colors cursor-pointer truncate py-1.5 rounded-lg hover:bg-white/5 px-2 active:bg-white/10"
+                                            >
                                                 {chat.title}
                                             </div>
                                         ))}
@@ -203,12 +212,18 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, openSettings, onNewChat, 
                         )}>
                             <div className="flex items-center gap-3 truncate">
                                 <Avatar className="w-8 h-8 flex-shrink-0 border border-white/10">
-                                    <AvatarFallback className="bg-[#aca796] text-[#1c1c1c] text-xs font-bold font-mono">H</AvatarFallback>
+                                    <AvatarFallback className="bg-[#aca796] text-[#1c1c1c] text-xs font-bold font-mono">
+                                        {user?.displayName ? user.displayName[0].toUpperCase() : (user?.email ? user.email[0].toUpperCase() : "?")}
+                                    </AvatarFallback>
                                 </Avatar>
                                 {!isCollapsed && (
                                     <div className="flex flex-col truncate">
-                                        <span className="text-sm font-bold text-white/90 leading-tight">himesh</span>
-                                        <span className="text-[11px] text-white/30 font-medium tracking-tight">Pro plan</span>
+                                        <span className="text-sm font-bold text-white/90 leading-tight">
+                                            {user?.displayName || (user?.email?.split('@')[0]) || "Anonymous"}
+                                        </span>
+                                        <span className="text-[11px] text-white/30 font-medium tracking-tight">
+                                            {user ? "Pro plan" : "Not Logged In"}
+                                        </span>
                                     </div>
                                 )}
                             </div>
@@ -216,19 +231,27 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, openSettings, onNewChat, 
                         </div>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-56 glass-dark border-white/10 text-white p-1 mb-2">
-                        <DropdownMenuItem className="focus:bg-white/10 rounded-lg cursor-pointer flex items-center gap-2 py-2" onClick={openSettings}>
-                            <Settings className="w-4 h-4" /> Settings
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="focus:bg-white/10 rounded-lg cursor-pointer flex items-center gap-2 py-2">
-                            <Info className="w-4 h-4" /> About
-                        </DropdownMenuItem>
-                        <Separator className="bg-white/5 my-1" />
-                        <DropdownMenuItem
-                            className="focus:bg-white/10 rounded-lg cursor-pointer flex items-center gap-2 py-2 text-red-400 focus:text-red-300"
-                            onClick={() => router.push("/signup")}
-                        >
-                            <LogOut className="w-4 h-4" /> Logout
-                        </DropdownMenuItem>
+                        {user ? (
+                            <>
+                                <DropdownMenuItem className="focus:bg-white/10 rounded-lg cursor-pointer flex items-center gap-2 py-2" onClick={openSettings}>
+                                    <Settings className="w-4 h-4" /> Settings
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="focus:bg-white/10 rounded-lg cursor-pointer flex items-center gap-2 py-2">
+                                    <Info className="w-4 h-4" /> About
+                                </DropdownMenuItem>
+                                <Separator className="bg-white/5 my-1" />
+                                <DropdownMenuItem
+                                    className="focus:bg-white/10 rounded-lg cursor-pointer flex items-center gap-2 py-2 text-red-400 focus:text-red-300"
+                                    onClick={() => signOut(auth)}
+                                >
+                                    <LogOut className="w-4 h-4" /> Logout
+                                </DropdownMenuItem>
+                            </>
+                        ) : (
+                            <DropdownMenuItem className="focus:bg-white/10 rounded-lg cursor-pointer flex items-center gap-2 py-2" onClick={openAuth}>
+                                <LogOut className="w-4 h-4" /> Login
+                            </DropdownMenuItem>
+                        )}
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>

@@ -15,7 +15,9 @@ import {
     Table as TableIcon,
     List,
     MessageSquare,
-    Sparkles
+    Sparkles,
+    Bot,
+    User
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -101,9 +103,8 @@ export const ChatInterface = ({ messages, isThinking }: { messages: Message[], i
                             animate={{ opacity: 1, y: 0 }}
                             className="flex items-start gap-4"
                         >
-                            <Avatar className="w-8 h-8 neon-border animate-pulse">
-                                <AvatarImage src="/logo.png" />
-                                <AvatarFallback className="bg-blue-950 text-blue-300">JV</AvatarFallback>
+                            <Avatar className="w-7 h-7 border border-neon-blue/20 bg-blue-950/50 flex items-center justify-center overflow-hidden">
+                                <Bot className="w-4 h-4 text-neon-blue drop-shadow-[0_0_8px_rgba(0,210,255,0.5)]" />
                             </Avatar>
                             <div className="flex flex-col gap-2">
                                 <p className="text-sm font-medium text-white/40 italic flex items-center gap-2">
@@ -154,17 +155,19 @@ const MessageItem = ({ message }: { message: Message }) => {
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
             className={cn(
-                "flex gap-4 group",
+                "flex gap-3 group",
                 isUser ? "flex-row-reverse" : "flex-row"
             )}
         >
             <Avatar className={cn(
-                "w-8 h-8 flex-shrink-0 mt-1",
-                isUser ? "neon-border" : "border border-neon-blue/30"
+                "w-7.5 h-7.5 flex-shrink-0 mt-0.5 flex items-center justify-center overflow-hidden transition-all duration-300 hover:scale-110",
+                isUser ? "bg-purple-600/20 border border-purple-500/30" : "bg-blue-600/20 border border-blue-500/30"
             )}>
-                <AvatarFallback className={isUser ? "bg-purple-950 text-purple-200" : "bg-blue-950 text-blue-200"}>
-                    {isUser ? "AM" : "JV"}
-                </AvatarFallback>
+                {isUser ? (
+                    <User className="w-4.5 h-4.5 text-purple-400 drop-shadow-[0_0_5px_rgba(168,85,247,0.4)]" />
+                ) : (
+                    <Bot className="w-4.5 h-4.5 text-blue-400 drop-shadow-[0_0_8px_rgba(0,210,255,0.4)]" />
+                )}
             </Avatar>
 
             <div className={cn(
@@ -172,7 +175,7 @@ const MessageItem = ({ message }: { message: Message }) => {
                 isUser ? "items-end" : "items-start"
             )}>
                 <div className={cn(
-                    "relative p-4 rounded-2xl glass transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,210,255,0.1)]",
+                    "relative py-1.5 px-3.5 rounded-xl transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,210,255,0.1)]",
                     isUser
                         ? "rounded-tr-none bg-blue-600/10 border-blue-500/20 hover:border-blue-500/40 hover:bg-blue-600/15"
                         : "rounded-tl-none bg-white/5 border-white/10 group-hover:border-neon-blue/40 group-hover:bg-white/[0.08]"
@@ -227,7 +230,7 @@ const MessageItem = ({ message }: { message: Message }) => {
 
                     {/* Message Footer Info */}
                     <div className={cn(
-                        "flex items-center gap-4 mt-3 text-[10px] text-white/30 font-mono",
+                        "flex items-center gap-3 mt-1.5 text-[10px] text-white/20 font-mono",
                         isUser ? "justify-end" : "justify-start"
                     )}>
                         <span className="flex items-center gap-1"><Clock size={10} /> {message.timestamp}</span>

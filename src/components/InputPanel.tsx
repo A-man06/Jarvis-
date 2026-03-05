@@ -57,11 +57,11 @@ export const InputPanel = ({
     };
 
     return (
-        <div className="pb-6 px-4 lg:px-8 bg-transparent">
+        <div className="pb-4 px-4 lg:px-6 bg-transparent">
             <div className="max-w-4xl mx-auto relative">
                 {/* Floating Tooltips or presets could go here */}
 
-                <div className="relative glass-dark rounded-2xl border border-white/20 p-1.5 shadow-2xl transition-all duration-300 hover:border-neon-blue/50 hover:shadow-[0_0_25px_rgba(0,210,255,0.2)] focus-within:border-neon-blue/50 focus-within:ring-1 focus-within:ring-neon-blue/30 shadow-[0_0_15px_rgba(0,210,255,0.08)]">
+                <div className="relative glass-dark rounded-2xl border border-white/20 p-1 shadow-2xl transition-all duration-300 hover:border-neon-blue/50 hover:shadow-[0_0_25px_rgba(0,210,255,0.2)] focus-within:border-neon-blue/50 focus-within:ring-1 focus-within:ring-neon-blue/30 shadow-[0_0_15px_rgba(0,210,255,0.08)]">
                     <div className="flex flex-col gap-0.5">
                         <Textarea
                             ref={textareaRef}
@@ -69,7 +69,7 @@ export const InputPanel = ({
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
                             placeholder="Ask anything to JARVIS..."
-                            className="min-h-[48px] w-full bg-transparent border-none focus-visible:ring-0 resize-none text-base py-2 px-4 placeholder:text-white/20"
+                            className="min-h-[44px] w-full bg-transparent border-none focus-visible:ring-0 resize-none text-[15px] py-1.5 px-3.5 placeholder:text-white/20"
                             disabled={isLoading}
                         />
 
@@ -84,25 +84,25 @@ export const InputPanel = ({
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-9 w-9 rounded-full text-white/40 hover:text-neon-blue hover:bg-neon-blue/10"
+                                    className="h-8 w-8 rounded-full text-white/40 hover:text-neon-blue hover:bg-neon-blue/10"
                                 >
-                                    <Mic className="w-4 h-4" />
+                                    <Mic className="w-3.5 h-3.5" />
                                 </Button>
 
                                 <Button
                                     onClick={handleSend}
                                     disabled={!input.trim() || isLoading}
                                     className={cn(
-                                        "h-10 w-10 rounded-full transition-all duration-300",
+                                        "h-9 w-9 rounded-full transition-all duration-300",
                                         input.trim() && !isLoading
                                             ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)] scale-105"
                                             : "bg-white/5 text-white/20 border border-white/10"
                                     )}
                                 >
                                     {isLoading ? (
-                                        <Sparkles className="w-5 h-5 animate-spin" />
+                                        <Sparkles className="w-4 h-4 animate-spin" />
                                     ) : (
-                                        <ArrowUp className="w-5 h-5" />
+                                        <ArrowUp className="w-4 h-4" />
                                     )}
                                 </Button>
                             </div>

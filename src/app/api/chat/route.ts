@@ -18,7 +18,7 @@ const PROVIDERS = [
     },
     {
         name: 'huggingface',
-        url: 'https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1/v1/chat/completions',
+        url: 'https://api-inference.huggingface.co/v1/chat/completions',
         apiKey: process.env.HUGGINGFACE_API_KEY!,
         model: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
     },
@@ -223,23 +223,8 @@ export async function POST(req: NextRequest) {
                     await new Promise(r => setTimeout(r, 15));
                 }
 
-                // Save to MongoDB
-                await connectDB();
-                await Chat.findOneAndUpdate(
-                    { sessionId },
-                    {
-                        $push: {
-                            messages: {
-                                $each: [
-                                    { role: 'user', content: message, timestamp: new Date() },
-                                    { role: 'assistant', content: best.content, timestamp: new Date() },
-                                ],
-                            },
-                        },
-                    },
-                    { upsert: true, new: true }
-                );
-
+                // MongoDB save removed to prevent blocking stream
+                // Frontend handles persistence via Firestore
                 controller.enqueue(encoder.encode('data: [DONE]\n\n'));
                 controller.close();
             } catch (err: any) {
