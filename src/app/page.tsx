@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { ChatInterface } from "@/components/ChatInterface";
 import { InputPanel } from "@/components/InputPanel";
@@ -11,21 +11,20 @@ import { AuthModal } from "@/components/AuthModal";
 import ParticleBackground from "@/components/ParticleBackground";
 import { useAuth } from "@/context/AuthContext";
 
-// ── Removed Firestore imports — MongoDB handles all storage now ──
-
 export default function Home() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isControlsOpen, setIsControlsOpen] = useState(false);
-  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isControlsOpen, setIsControlsOpen]         = useState(false);
+  const [isAnalyticsOpen, setIsAnalyticsOpen]       = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen]         = useState(false);
+  const [isAuthOpen, setIsAuthOpen]                 = useState(false);
 
   const { user, loading: authLoading } = useAuth();
 
-  const [messages, setMessages] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [sessionId, setSessionId] = useState('');
-  const [chatHistoryList, setChatHistoryList] = useState<{ id: string; title: string }[]>([]);
+  const [messages, setMessages]               = useState<any[]>([]);
+  const [isLoading, setIsLoading]             = useState(false);
+  const [sessionId, setSessionId]             = useState('');
+  const [chatHistoryList, setChatHistoryList] = useState<{ id: string; title: string; pinned?: boolean }[]>([]);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // ── Generate sessionId only after user is ready ──────────────
   useEffect(() => {
@@ -41,15 +40,13 @@ export default function Home() {
   // ── Sync chat history from MongoDB when user logs in ─────────
   useEffect(() => {
     if (!user || authLoading) return;
-
     const syncHistory = async () => {
       try {
         const token = await user.getIdToken();
-        const res = await fetch('/api/history', {
+        const res   = await fetch('/api/history', {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await res.json();
-
         if (data.sessions?.length > 0) {
           setChatHistoryList(
             data.sessions.map((s: any) => ({ id: s.sessionId, title: s.title || 'New Chat' }))
@@ -59,32 +56,48 @@ export default function Home() {
         console.error('History sync failed:', e);
       }
     };
-
     syncHistory();
   }, [user, authLoading]);
+
+  // ── Helper: refresh sidebar history ──────────────────────────
+  const refreshHistory = async () => {
+    if (!user) return;
+    try {
+      const token = await user.getIdToken();
+      const res   = await fetch('/api/history', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.sessions?.length > 0) {
+        setChatHistoryList(data.sessions.map((s: any) => ({
+          id:     s.sessionId,
+          title:  s.title || 'New Chat',
+          pinned: s.pinned || false,
+        })));
+      }
+    } catch (e) {
+      console.error('Refresh history failed:', e);
+    }
+  };
 
   // ── Load a specific chat session ─────────────────────────────
   const handleSelectChat = async (id: string, title: string) => {
     if (!user) return;
-
     setSessionId(id);
     setMessages([]);
-
     try {
       const token = await user.getIdToken();
-      const res = await fetch(`/api/history?sessionId=${id}`, {
+      const res   = await fetch(`/api/history?sessionId=${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-
       if (data.messages?.length > 0) {
         setMessages(
           data.messages.map((m: any, i: number) => ({
             ...m,
-            id: m._id || `${id}-${i}`,
+            id:        m._id || `${id}-${i}`,
             timestamp: new Date(m.timestamp).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
+              hour: '2-digit', minute: '2-digit',
             }),
           }))
         );
@@ -107,12 +120,9 @@ export default function Home() {
     try {
       const token = await user.getIdToken();
       await fetch('/api/history', {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ sessionId: id }),
+        method:  'DELETE',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ sessionId: id }),
       });
       setChatHistoryList(prev => prev.filter(c => c.id !== id));
       if (id === sessionId) handleNewChat();
@@ -121,36 +131,43 @@ export default function Home() {
     }
   };
 
-  // ── Send message ──────────────────────────────────────────────
+  const handleRenameChat = (id: string, newTitle: string) => {
+    setChatHistoryList(prev => prev.map(c => c.id === id ? { ...c, title: newTitle } : c));
+  };
+
+  const handlePinChat = (id: string) => {
+    setChatHistoryList(prev => prev.map(c => c.id === id ? { ...c, pinned: !c.pinned } : c));
+  };
+
+  // ── Stop generation ───────────────────────────────────────────
+  const handleStopGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  // ── Send text message ─────────────────────────────────────────
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
 
-    // ── Guard: must be logged in ──────────────────────────────
-    if (!user) {
-      setIsAuthOpen(true);   // open login modal if not logged in
-      return;
-    }
+    if (!user) { setIsAuthOpen(true); return; }
 
-    const timestampStr = new Date().toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-
-    const userMsg = {
-      id: Date.now().toString(),
-      role: 'user',
-      content,
-      timestamp: timestampStr,
-    };
+    const timestampStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const userMsg = { id: Date.now().toString(), role: 'user', content, timestamp: timestampStr };
 
     setMessages(prev => [...prev, userMsg]);
     setIsLoading(true);
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setMessages(prev => [
       ...prev,
       { id: (Date.now() + 1).toString(), role: 'assistant', content: '', timestamp: timestampStr },
     ]);
 
-    // ── Add to sidebar history on first message ───────────────
     if (messages.length === 0) {
       setChatHistoryList(prev => {
         if (prev.some(c => c.id === sessionId)) return prev;
@@ -159,23 +176,21 @@ export default function Home() {
     }
 
     try {
-      const token = await user.getIdToken();   // ← always get fresh token
+      const token      = await user.getIdToken();
       const apiHistory = messages.slice(-10).map(m => ({ role: m.role, content: m.content }));
 
       const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,   // ← always send token
-        },
-        body: JSON.stringify({ message: content, sessionId, history: apiHistory }),
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({ message: content, sessionId, history: apiHistory }),
+        signal:  controller.signal,
       });
 
       if (!res.ok) throw new Error(`API error: ${res.status}`);
 
-      const reader = res.body!.getReader();
+      const reader  = res.body!.getReader();
       const decoder = new TextDecoder();
-      let accumulated = '';
+      let accumulated  = '';
       let fullAIResponse = '';
 
       while (true) {
@@ -183,27 +198,13 @@ export default function Home() {
         if (done) break;
 
         accumulated += decoder.decode(value, { stream: true });
-        const lines = accumulated.split('\n');
-        accumulated = lines.pop() || '';
+        const lines  = accumulated.split('\n');
+        accumulated  = lines.pop() || '';
 
         for (const line of lines) {
           if (!line.trim() || !line.startsWith('data:')) continue;
           const data = line.replace('data: ', '').trim();
-          if (data === '[DONE]') {
-            // ── Refresh sidebar history after response ────────
-            const t = await user.getIdToken();
-            fetch('/api/history', { headers: { Authorization: `Bearer ${t}` } })
-              .then(r => r.json())
-              .then(d => {
-                if (d.sessions?.length > 0) {
-                  setChatHistoryList(d.sessions.map((s: any) => ({
-                    id: s.sessionId,
-                    title: s.title || 'New Chat',
-                  })));
-                }
-              });
-            continue;
-          }
+          if (data === '[DONE]') { refreshHistory(); continue; }
 
           try {
             const parsed = JSON.parse(data);
@@ -211,20 +212,18 @@ export default function Home() {
               fullAIResponse += parsed.content;
               setMessages(prev => {
                 const updated = [...prev];
-                const last = updated[updated.length - 1];
+                const last    = updated[updated.length - 1];
                 if (last?.role === 'assistant') {
                   updated[updated.length - 1] = { ...last, content: fullAIResponse };
                 }
                 return updated;
               });
             }
-          } catch (e) {
-            console.error('Stream parse error:', e);
-          }
+          } catch (e) { console.error('Stream parse error:', e); }
         }
       }
-    } catch (error) {
-      console.error('Chat error:', error);
+    } catch (error: any) {
+      if (error.name === 'AbortError') return;
       setMessages(prev => {
         const updated = [...prev];
         updated[updated.length - 1] = {
@@ -235,10 +234,122 @@ export default function Home() {
       });
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
-  // ── Show loading spinner while auth initializes ───────────────
+  // ── Send image message ──────────────────────────────────────── ← NEW
+  const handleSendWithImage = async (formData: FormData) => {
+    if (!user) { setIsAuthOpen(true); return; }
+
+    const message      = formData.get('message') as string;
+    const file         = formData.get('image') as File;
+    const timestampStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const localPreview = URL.createObjectURL(file);
+
+    // Show image + message in chat immediately
+    const userMsgId = Date.now().toString();
+    const userMsg   = {
+      id:        userMsgId,
+      role:      'user' as const,
+      content:   message || 'What is in this image?',
+      imageUrl:  localPreview,       // local blob preview
+      timestamp: timestampStr,
+    };
+
+    setMessages(prev => [...prev, userMsg]);
+    setIsLoading(true);
+    setMessages(prev => [
+      ...prev,
+      { id: (Date.now() + 1).toString(), role: 'assistant', content: '', timestamp: timestampStr },
+    ]);
+
+    // Add to sidebar on first message
+    if (messages.length === 0) {
+      setChatHistoryList(prev => {
+        if (prev.some(c => c.id === sessionId)) return prev;
+        return [{ id: sessionId, title: (message || 'Image upload').slice(0, 40) }, ...prev];
+      });
+    }
+
+    try {
+      const token = await user.getIdToken();
+
+      // Append sessionId and history to formData
+      formData.append('sessionId', sessionId);
+      formData.append('history', JSON.stringify(
+        messages.slice(-6).map(m => ({ role: m.role, content: m.content }))
+      ));
+
+      const res = await fetch('/api/vision', {
+        method:  'POST',
+        headers: { Authorization: `Bearer ${token}` },  // NO Content-Type (FormData sets it)
+        body:    formData,
+      });
+
+      if (!res.ok) throw new Error(`Vision API error: ${res.status}`);
+
+      const reader  = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let accumulated   = '';
+      let fullResponse  = '';
+      let cloudinaryUrl = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        accumulated += decoder.decode(value, { stream: true });
+        const lines  = accumulated.split('\n');
+        accumulated  = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim() || !line.startsWith('data:')) continue;
+          const data = line.replace('data: ', '').trim();
+          if (data === '[DONE]') { refreshHistory(); continue; }
+
+          try {
+            const parsed = JSON.parse(data);
+
+            // First chunk → replace local blob with Cloudinary URL
+            if (parsed.imageUrl && !cloudinaryUrl) {
+              cloudinaryUrl = parsed.imageUrl;
+              setMessages(prev => prev.map(m =>
+                m.id === userMsgId ? { ...m, imageUrl: cloudinaryUrl } : m
+              ));
+            }
+
+            // Stream AI response
+            if (parsed.content) {
+              fullResponse += parsed.content;
+              setMessages(prev => {
+                const updated = [...prev];
+                const last    = updated[updated.length - 1];
+                if (last?.role === 'assistant') {
+                  updated[updated.length - 1] = { ...last, content: fullResponse };
+                }
+                return updated;
+              });
+            }
+          } catch (e) { console.error('Vision stream parse error:', e); }
+        }
+      }
+    } catch (error: any) {
+      console.error('Vision error:', error);
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = {
+          ...updated[updated.length - 1],
+          content: '⚠️ Failed to analyze image. Please try again.',
+        };
+        return updated;
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ── Auth loading spinner ──────────────────────────────────────
   if (authLoading) {
     return (
       <main className="flex h-screen w-full items-center justify-center bg-background">
@@ -253,7 +364,6 @@ export default function Home() {
   return (
     <main className="flex h-screen w-full overflow-hidden bg-background text-foreground relative">
       <ParticleBackground />
-
       <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(15,23,42,0.5),rgba(2,6,23,1))] pointer-events-none z-0" />
 
       <Sidebar
@@ -264,7 +374,9 @@ export default function Home() {
         onNewChat={handleNewChat}
         onSelectChat={handleSelectChat}
         onDeleteChat={handleDeleteChat}
-        chats={chatHistoryList}
+        onRenameChat={handleRenameChat}
+        onPinChat={handlePinChat}
+        chats={[...chatHistoryList].sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))}
         user={user}
       />
 
@@ -274,17 +386,21 @@ export default function Home() {
           <div className="mt-auto">
             <InputPanel
               onSend={handleSendMessage}
+              onSendImage={handleSendWithImage}   // ← NEW
               isLoading={isLoading}
+              onStop={handleStopGeneration}
+              sessionId={sessionId}               // ← NEW
+              history={messages}                  // ← NEW
               openControls={() => setIsControlsOpen(true)}
             />
           </div>
         </div>
       </div>
 
-      <AdvancedControls isOpen={isControlsOpen} onClose={() => setIsControlsOpen(false)} />
-      <AnalyticsDashboard isOpen={isAnalyticsOpen} onClose={() => setIsAnalyticsOpen(false)} />
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+      <AdvancedControls    isOpen={isControlsOpen}   onClose={() => setIsControlsOpen(false)} />
+      <AnalyticsDashboard  isOpen={isAnalyticsOpen}  onClose={() => setIsAnalyticsOpen(false)} />
+      <SettingsModal       isOpen={isSettingsOpen}   onClose={() => setIsSettingsOpen(false)} />
+      <AuthModal           isOpen={isAuthOpen}       onClose={() => setIsAuthOpen(false)} />
     </main>
   );
 }
@@ -292,13 +408,11 @@ export default function Home() {
 
 // ---
 
-// ## Summary of All Changes
+// ## Summary of Changes
 // ```
-// ✅ Removed all Firestore imports       → MongoDB only, no duplicate saves
-// ✅ sessionId set after user loads      → no empty session on startup
-// ✅ Auth guard in handleSendMessage     → opens login modal if not logged in
-// ✅ Token always sent to /api/chat      → secure, server verifies every request
-// ✅ handleDeleteChat added              → delete sessions from MongoDB
-// ✅ Sidebar history refreshes on [DONE] → live updates after each response
-// ✅ authLoading spinner                 → clean UX while Firebase initializes
-// ✅ Removed Firestore dual-save         → single source of truth (MongoDB)
+// ✅ Added handleSendWithImage function
+// ✅ Added refreshHistory helper (cleaner, reused in both send functions)
+// ✅ InputPanel gets 3 new props: onSendImage, sessionId, history
+// ✅ AbortError handled cleanly (no error message on manual stop)
+// ✅ Local blob preview → replaced with Cloudinary URL after upload
+// ✅ Image chats appear in sidebar history correctly
