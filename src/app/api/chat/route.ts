@@ -77,7 +77,6 @@ function scoreResponse(content: string, userMessage: string, latencyMs: number):
     return Math.max(0, Math.min(100, score));
 }
 
-// Standard fetch for Groq, Gemini, HuggingFace
 async function fetchFromProvider(
     provider: typeof PROVIDERS[0],
     messages: Message[]
@@ -126,7 +125,6 @@ async function fetchFromProvider(
     }
 }
 
-// Cohere has different API format so separate function
 async function fetchFromCohere(apiKey: string, messages: Message[]): Promise<ProviderResult> {
     const start = Date.now();
     try {
@@ -177,19 +175,19 @@ export async function POST(req: NextRequest) {
     const messages: Message[] = [
         {
             role: 'system',
-            content: 'You are JARVIS, an advanced AI assistant. Be helpful, intelligent, and concise.',
+            // ✅ Updated system prompt for language detection
+            content: `You are JARVIS, an advanced AI assistant. Be helpful, intelligent, and concise.
+CRITICAL LANGUAGE RULE: If the user message starts with [Reply strictly in Hindi only], you MUST reply entirely in Hindi (Devanagari script). If it starts with [Reply strictly in English only], you MUST reply entirely in English. Never mix languages. Never translate. Always follow the language instruction at the start of the message strictly.`,
         },
-        // Filter out the current message from history if it exists there
         ...history.filter((m: any) => m.content !== message).slice(-8),
         { role: 'user', content: message },
     ];
 
-    // All 4 race in parallel
     const results = await Promise.all([
-        fetchFromProvider(PROVIDERS[0], messages), // groq
-        fetchFromProvider(PROVIDERS[1], messages), // gemini
-        fetchFromCohere(process.env.COHERE_API_KEY!, messages), // cohere
-        fetchFromProvider(PROVIDERS[2], messages), // huggingface
+        fetchFromProvider(PROVIDERS[0], messages),
+        fetchFromProvider(PROVIDERS[1], messages),
+        fetchFromCohere(process.env.COHERE_API_KEY!, messages),
+        fetchFromProvider(PROVIDERS[2], messages),
     ]);
 
     const best = results
@@ -225,7 +223,6 @@ export async function POST(req: NextRequest) {
                     await new Promise(r => setTimeout(r, 15));
                 }
 
-                // Non-blocking MongoDB background save
                 connectDB().then(() => {
                     Chat.findOneAndUpdate(
                         { sessionId },
