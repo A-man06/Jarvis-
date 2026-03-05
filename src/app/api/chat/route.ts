@@ -18,7 +18,7 @@ const PROVIDERS = [
     },
     {
         name: 'huggingface',
-        url: 'https://api-inference.huggingface.co/v1/chat/completions',
+        url: 'https://router.huggingface.co/v1/chat/completions',
         apiKey: process.env.HUGGINGFACE_API_KEY!,
         model: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
     },
@@ -146,8 +146,10 @@ async function fetchFromCohere(apiKey: string, messages: Message[]): Promise<Pro
             },
             body: JSON.stringify({
                 model: 'command-r-plus',
-                system_prompt: systemMsg,
-                messages: chatMessages,
+                messages: [
+                    ...(systemMsg ? [{ role: 'system', content: systemMsg }] : []),
+                    ...chatMessages
+                ],
                 max_tokens: 1024,
             }),
             signal: AbortSignal.timeout(12000),
@@ -223,8 +225,24 @@ export async function POST(req: NextRequest) {
                     await new Promise(r => setTimeout(r, 15));
                 }
 
-                // MongoDB save removed to prevent blocking stream
-                // Frontend handles persistence via Firestore
+                // Non-blocking MongoDB background save
+                connectDB().then(() => {
+                    Chat.findOneAndUpdate(
+                        { sessionId },
+                        {
+                            $push: {
+                                messages: {
+                                    $each: [
+                                        { role: 'user', content: message, timestamp: new Date() },
+                                        { role: 'assistant', content: best.content, timestamp: new Date() },
+                                    ],
+                                },
+                            },
+                        },
+                        { upsert: true, returnOriginal: false }
+                    ).catch(e => console.error("[MongoDB Save Error]", e));
+                }).catch(e => console.error("[MongoDB Conn Error]", e));
+
                 controller.enqueue(encoder.encode('data: [DONE]\n\n'));
                 controller.close();
             } catch (err: any) {
