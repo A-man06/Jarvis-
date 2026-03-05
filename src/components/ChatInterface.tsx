@@ -37,15 +37,6 @@ interface Message {
     responseTime?: string;
 }
 
-interface Message {
-    id: string;
-    role: "user" | "assistant";
-    content: string;
-    timestamp: string;
-    tokens?: number;
-    responseTime?: string;
-}
-
 export const ChatInterface = ({ messages, isThinking }: { messages: Message[], isThinking: boolean }) => {
     const bottomRef = useRef<HTMLDivElement>(null);
     const [autoScroll, setAutoScroll] = useState(true);
