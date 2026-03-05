@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/tooltip";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 interface SidebarProps {
     isCollapsed: boolean;
@@ -62,6 +63,7 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ isCollapsed, setIsCollapsed, openSettings, onNewChat, chats }: SidebarProps) => {
+    const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     const [activeTab, setActiveTab] = useState("Chats");
     const [isSearching, setIsSearching] = useState(false);
@@ -221,7 +223,10 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, openSettings, onNewChat, 
                             <Info className="w-4 h-4" /> About
                         </DropdownMenuItem>
                         <Separator className="bg-white/5 my-1" />
-                        <DropdownMenuItem className="focus:bg-white/10 rounded-lg cursor-pointer flex items-center gap-2 py-2 text-red-400 focus:text-red-300">
+                        <DropdownMenuItem
+                            className="focus:bg-white/10 rounded-lg cursor-pointer flex items-center gap-2 py-2 text-red-400 focus:text-red-300"
+                            onClick={() => router.push("/signup")}
+                        >
                             <LogOut className="w-4 h-4" /> Logout
                         </DropdownMenuItem>
                     </DropdownMenuContent>
