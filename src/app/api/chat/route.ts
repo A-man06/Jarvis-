@@ -194,7 +194,9 @@ export async function POST(req: NextRequest) {
     const messages: Message[] = [
         {
             role: 'system',
-            content: 'You are JARVIS, an advanced AI assistant. Be helpful, intelligent, and concise.',
+            // ✅ Updated system prompt for language detection
+            content: `You are JARVIS, an advanced AI assistant. Be helpful, intelligent, and concise.
+CRITICAL LANGUAGE RULE: If the user message starts with [Reply strictly in Hindi only], you MUST reply entirely in Hindi (Devanagari script). If it starts with [Reply strictly in English only], you MUST reply entirely in English. Never mix languages. Never translate. Always follow the language instruction at the start of the message strictly.`,
         },
         ...history.filter((m: any) => m.content !== message).slice(-8),
         { role: 'user', content: message },
