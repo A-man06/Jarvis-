@@ -3,22 +3,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    Copy,
-    RotateCcw,
-    ThumbsUp,
-    ThumbsDown,
-    Clock,
-    Zap,
-    Check,
-    Ghost,
-    Terminal,
-    Table as TableIcon,
-    List,
-    MessageSquare,
-    Sparkles,
-    Bot,
-    User,
-    ArrowDown
+    Copy, RotateCcw, ThumbsUp, ThumbsDown, Clock,
+    Zap, Check, Sparkles, Bot, User, ArrowDown
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -26,14 +12,16 @@ import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/tokyo-night-dark.css";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";   // ← ADD
 
 interface Message {
     id: string;
     role: "user" | "assistant";
     content: string;
     timestamp: string;
+    imageUrl?: string;          // ← ADD
     tokens?: number;
     responseTime?: string;
 }
@@ -49,7 +37,6 @@ export const ChatInterface = ({ messages, isThinking }: { messages: Message[], i
         }
     };
 
-    // Auto-scroll logic: only scroll if user is at bottom or AI is thinking
     useEffect(() => {
         if (autoScroll) {
             scrollToBottom(isThinking ? "auto" : "smooth");
@@ -58,9 +45,7 @@ export const ChatInterface = ({ messages, isThinking }: { messages: Message[], i
 
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
         const target = e.currentTarget;
-        // Check if user is near bottom (within 100px)
         const isAtBottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 100;
-
         setAutoScroll(isAtBottom);
         setShowScrollButton(!isAtBottom);
     };
@@ -97,6 +82,7 @@ export const ChatInterface = ({ messages, isThinking }: { messages: Message[], i
                             </div>
                         </motion.div>
                     )}
+
                     <AnimatePresence initial={false}>
                         {messages.map((message) => (
                             <MessageItem key={message.id} message={message} />
@@ -118,21 +104,9 @@ export const ChatInterface = ({ messages, isThinking }: { messages: Message[], i
                                     JARVIS is thinking...
                                 </p>
                                 <div className="flex gap-1">
-                                    <motion.span
-                                        animate={{ scale: [1, 1.2, 1] }}
-                                        transition={{ repeat: Infinity, duration: 1 }}
-                                        className="w-1.5 h-1.5 bg-neon-blue rounded-full"
-                                    />
-                                    <motion.span
-                                        animate={{ scale: [1, 1.2, 1] }}
-                                        transition={{ repeat: Infinity, duration: 1, delay: 0.2 }}
-                                        className="w-1.5 h-1.5 bg-neon-purple rounded-full"
-                                    />
-                                    <motion.span
-                                        animate={{ scale: [1, 1.2, 1] }}
-                                        transition={{ repeat: Infinity, duration: 1, delay: 0.4 }}
-                                        className="w-1.5 h-1.5 bg-neon-blue rounded-full"
-                                    />
+                                    <motion.span animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="w-1.5 h-1.5 bg-neon-blue rounded-full" />
+                                    <motion.span animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-1.5 h-1.5 bg-neon-purple rounded-full" />
+                                    <motion.span animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-1.5 h-1.5 bg-neon-blue rounded-full" />
                                 </div>
                             </div>
                         </motion.div>
@@ -163,9 +137,11 @@ export const ChatInterface = ({ messages, isThinking }: { messages: Message[], i
     );
 };
 
+// ─────────────────────────────────────────────────────────
 const MessageItem = ({ message }: { message: Message }) => {
     const isUser = message.role === "user";
     const [copied, setCopied] = useState(false);
+    const { user } = useAuth();                    // ← ADD
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(message.content);
@@ -179,19 +155,20 @@ const MessageItem = ({ message }: { message: Message }) => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className={cn(
-                "flex gap-3 group",
-                isUser ? "flex-row-reverse" : "flex-row"
-            )}
+            className={cn("flex gap-3 group", isUser ? "flex-row-reverse" : "flex-row")}
         >
+            {/* ── Avatar ── */}
             <Avatar className={cn(
-                "w-7.5 h-7.5 flex-shrink-0 mt-0.5 flex items-center justify-center overflow-hidden transition-all duration-300 hover:scale-110",
+                "w-7 h-7 flex-shrink-0 mt-0.5 flex items-center justify-center overflow-hidden transition-all duration-300 hover:scale-110",
                 isUser ? "bg-purple-600/20 border border-purple-500/30" : "bg-blue-600/20 border border-blue-500/30"
             )}>
                 {isUser ? (
-                    <User className="w-4.5 h-4.5 text-purple-400 drop-shadow-[0_0_5px_rgba(168,85,247,0.4)]" />
+                    // Show Firebase profile photo if available         ← ADD
+                    user?.photoURL
+                        ? <AvatarImage src={user.photoURL} alt="User" className="rounded-full object-cover" />
+                        : <User className="w-4 h-4 text-purple-400 drop-shadow-[0_0_5px_rgba(168,85,247,0.4)]" />
                 ) : (
-                    <Bot className="w-4.5 h-4.5 text-blue-400 drop-shadow-[0_0_8px_rgba(0,210,255,0.4)]" />
+                    <Bot className="w-4 h-4 text-blue-400 drop-shadow-[0_0_8px_rgba(0,210,255,0.4)]" />
                 )}
             </Avatar>
 
@@ -205,15 +182,26 @@ const MessageItem = ({ message }: { message: Message }) => {
                         ? "rounded-tr-none bg-blue-600/10 border-blue-500/20 hover:border-blue-500/40 hover:bg-blue-600/15"
                         : "rounded-tl-none bg-white/5 border-white/10 group-hover:border-neon-blue/40 group-hover:bg-white/[0.08]"
                 )}>
-                    {/* Neon Glow for AI messages */}
                     {!isUser && (
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500/0 via-purple-500/0 to-blue-500/0 rounded-2xl blur opacity-0 group-hover:opacity-40 transition duration-500"></div>
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500/0 via-purple-500/0 to-blue-500/0 rounded-2xl blur opacity-0 group-hover:opacity-40 transition duration-500" />
                     )}
-                    {/* Subtle Glow for User messages */}
                     {isUser && (
-                        <div className="absolute -inset-0.5 bg-blue-500/0 rounded-2xl blur opacity-0 group-hover:opacity-20 transition duration-500 group-hover:bg-blue-500/10"></div>
+                        <div className="absolute -inset-0.5 bg-blue-500/0 rounded-2xl blur opacity-0 group-hover:opacity-20 transition duration-500 group-hover:bg-blue-500/10" />
                     )}
 
+                    {/* ── Image Preview (shown above text) ── ← ADD */}
+                    {message.imageUrl && (
+                        <div className="mb-3">
+                            <img
+                                src={message.imageUrl}
+                                alt="Uploaded"
+                                className="max-w-full max-h-64 rounded-lg border border-white/10 object-contain cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => window.open(message.imageUrl, '_blank')}
+                            />
+                        </div>
+                    )}
+
+                    {/* ── Message Text ── */}
                     <div className="prose prose-invert prose-sm max-w-none">
                         <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
@@ -229,9 +217,7 @@ const MessageItem = ({ message }: { message: Message }) => {
                                                 <span className="text-[10px] text-white/30 uppercase tracking-widest">{match[1]}</span>
                                             </div>
                                             <pre className="!bg-[#0d1117] !p-4 rounded-xl border border-white/5 overflow-x-auto">
-                                                <code className={className} {...props}>
-                                                    {children}
-                                                </code>
+                                                <code className={className} {...props}>{children}</code>
                                             </pre>
                                         </div>
                                     ) : (
@@ -253,7 +239,7 @@ const MessageItem = ({ message }: { message: Message }) => {
                         </ReactMarkdown>
                     </div>
 
-                    {/* Message Footer Info */}
+                    {/* ── Footer ── */}
                     <div className={cn(
                         "flex items-center gap-3 mt-1.5 text-[10px] text-white/20 font-mono",
                         isUser ? "justify-end" : "justify-start"
@@ -268,7 +254,7 @@ const MessageItem = ({ message }: { message: Message }) => {
                     </div>
                 </div>
 
-                {/* Action Buttons */}
+                {/* ── Action Buttons ── */}
                 <div className={cn(
                     "flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity",
                     isUser ? "flex-row-reverse" : "flex-row"

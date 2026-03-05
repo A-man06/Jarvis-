@@ -1,50 +1,50 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-    Mic,
-    Paperclip,
-    ArrowUp,
-    Sparkles,
-    MicOff,
-    Image as ImageIcon,
-    FileUp,
-    Square
+    Mic, Paperclip, ArrowUp, Sparkles,
+    MicOff, Image as ImageIcon, FileUp, Square, X
 } from "lucide-react";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
+    DropdownMenu, DropdownMenuContent,
+    DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipTrigger
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export const InputPanel = ({
     openControls,
     onSend,
+    onSendImage,        // ← ADD
     isLoading,
     onVoiceChat,
     onStop,
+    sessionId,          // ← ADD
+    history,            // ← ADD
 }: {
     openControls: () => void;
     onSend: (content: string) => void;
+    onSendImage?: (formData: FormData) => void;   // ← ADD
     isLoading: boolean;
     onVoiceChat?: () => void;
     onStop?: () => void;
+    sessionId?: string;                           // ← ADD
+    history?: any[];                              // ← ADD
 }) => {
     const [input, setInput] = useState("");
     const [isRecording, setIsRecording] = useState(false);
     const [interimText, setInterimText] = useState("");
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    // ── Image states ─────────────────────────────────────── ← ADD
+    const [selectedImage, setSelectedImage] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+    const textareaRef  = useRef<HTMLTextAreaElement>(null);
     const recognitionRef = useRef<any>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);   // ← ADD
 
     useEffect(() => {
         if (textareaRef.current) {
@@ -53,8 +53,57 @@ export const InputPanel = ({
         }
     }, [input, interimText]);
 
+    // ── Image selection handler ──────────────────────────── ← ADD
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file');
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            alert('Image must be under 10MB');
+            return;
+        }
+
+        setSelectedImage(file);
+        setImagePreview(URL.createObjectURL(file));
+
+        // Reset file input so same file can be reselected
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    // ── Remove selected image ────────────────────────────── ← ADD
+    const removeImage = () => {
+        setSelectedImage(null);
+        setImagePreview(null);
+    };
+
+    // ── Send handler ─────────────────────────────────────────
     const handleSend = () => {
-        if (!input.trim() || isLoading) return;
+        if (isLoading) return;
+
+        // ── If image selected → send to /api/vision ──────── ← ADD
+        if (selectedImage && onSendImage) {
+            const formData = new FormData();
+            formData.append('image',     selectedImage);
+            formData.append('message',   input.trim() || 'What is in this image?');
+            formData.append('sessionId', sessionId || '');
+            formData.append('history',   JSON.stringify(
+                (history || []).slice(-6).map((m: any) => ({ role: m.role, content: m.content }))
+            ));
+
+            onSendImage(formData);
+
+            setSelectedImage(null);
+            setImagePreview(null);
+            setInput('');
+            return;
+        }
+
+        // ── Normal text send ──────────────────────────────────
+        if (!input.trim()) return;
         onSend(input);
         setInput("");
     };
@@ -66,7 +115,7 @@ export const InputPanel = ({
         }
     };
 
-    // ─── Voice to Text (word by word) ──────────────────────────────────
+    // ── Voice to Text ─────────────────────────────────────────
     const toggleRecording = () => {
         const SpeechRecognition =
             (window as any).SpeechRecognition ||
@@ -85,52 +134,43 @@ export const InputPanel = ({
         }
 
         const recognition = new SpeechRecognition();
-        recognition.continuous = true;       // keep listening
-        recognition.interimResults = true;   // word by word
-        recognition.lang = "en-US";
+        recognition.continuous    = true;
+        recognition.interimResults = true;
+        recognition.lang          = "en-US";
 
         recognition.onresult = (event: any) => {
             let interim = "";
-            let final = "";
-
+            let final   = "";
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 const transcript = event.results[i][0].transcript;
-                if (event.results[i].isFinal) {
-                    final += transcript + " ";
-                } else {
-                    interim += transcript;
-                }
+                if (event.results[i].isFinal) final += transcript + " ";
+                else interim += transcript;
             }
-
-            // Add final words to input
-            if (final) {
-                setInput(prev => prev + final);
-                setInterimText("");
-            }
-
-            // Show interim words live in placeholder
-            if (interim) {
-                setInterimText(interim);
-            }
+            if (final)   { setInput(prev => prev + final); setInterimText(""); }
+            if (interim) { setInterimText(interim); }
         };
 
-        recognition.onend = () => {
-            setIsRecording(false);
-            setInterimText("");
-        };
-
-        recognition.onerror = () => {
-            setIsRecording(false);
-            setInterimText("");
-        };
+        recognition.onend  = () => { setIsRecording(false); setInterimText(""); };
+        recognition.onerror = () => { setIsRecording(false); setInterimText(""); };
 
         recognitionRef.current = recognition;
         recognition.start();
         setIsRecording(true);
     };
 
+    const canSend = !isLoading && (!!input.trim() || !!selectedImage);
+
     return (
         <div className="pb-4 px-4 lg:px-6 bg-transparent">
+            {/* ── Hidden file input ──────────────────────────── ← ADD */}
+            <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageSelect}
+            />
+
             <div className="max-w-4xl mx-auto relative">
                 <div className={cn(
                     "relative glass-dark rounded-2xl border p-1 shadow-2xl transition-all duration-300",
@@ -139,6 +179,43 @@ export const InputPanel = ({
                         : "border-white/20 hover:border-neon-blue/50 hover:shadow-[0_0_25px_rgba(0,210,255,0.2)] focus-within:border-neon-blue/50 focus-within:ring-1 focus-within:ring-neon-blue/30 shadow-[0_0_15px_rgba(0,210,255,0.08)]"
                 )}>
                     <div className="flex flex-col gap-0.5">
+
+                        {/* ── Image Preview ──────────────────────────── ← ADD */}
+                        <AnimatePresence>
+                            {imagePreview && (
+                                <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="px-3.5 pt-2"
+                                >
+                                    <div className="relative inline-block">
+                                        <img
+                                            src={imagePreview}
+                                            alt="Preview"
+                                            className="h-24 w-24 object-cover rounded-xl border border-white/20 shadow-lg"
+                                        />
+                                        {/* Remove button */}
+                                        <button
+                                            onClick={removeImage}
+                                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full text-white flex items-center justify-center transition-colors shadow-md"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                        {/* Image label */}
+                                        <div className="absolute bottom-1 left-1 right-1 bg-black/60 rounded-lg px-1.5 py-0.5">
+                                            <p className="text-[9px] text-white/70 truncate text-center">
+                                                {selectedImage?.name}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] text-white/30 mt-1 font-mono">
+                                        📎 Image ready · Add a message or send directly
+                                    </p>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
                         <Textarea
                             ref={textareaRef}
                             value={input}
@@ -149,13 +226,15 @@ export const InputPanel = ({
                                     ? interimText
                                         ? `🔴 ${interimText}...`
                                         : "🔴 Listening..."
-                                    : "Ask anything to JARVIS..."
+                                    : selectedImage
+                                        ? "Ask something about this image... (or press send)"  // ← ADD
+                                        : "Ask anything to JARVIS..."
                             }
                             className="min-h-[44px] w-full bg-transparent border-none focus-visible:ring-0 resize-none text-[15px] py-1.5 px-3.5 placeholder:text-white/40"
                             disabled={isLoading}
                         />
 
-                        {/* Live interim text display */}
+                        {/* Live interim voice text */}
                         {isRecording && interimText && (
                             <div className="px-3.5 pb-1 text-sm text-white/50 italic">
                                 {interimText}
@@ -168,11 +247,23 @@ export const InputPanel = ({
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <div>
-                                            <InputIconButton icon={<Paperclip className="w-4 h-4" />} label="Add photos & files" />
+                                            <InputIconButton
+                                                icon={
+                                                    <Paperclip className={cn(
+                                                        "w-4 h-4 transition-colors",
+                                                        selectedImage ? "text-neon-blue" : ""  // ← highlight when image selected
+                                                    )} />
+                                                }
+                                                label="Add photos & files"
+                                            />
                                         </div>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent side="top" align="start" className="w-40 glass-dark border-white/10 text-white p-1 mb-2">
-                                        <DropdownMenuItem className="flex items-center gap-2.5 cursor-pointer focus:bg-white/10 focus:text-white rounded-lg transition-colors py-2 px-3">
+                                        {/* ── Wired up to file input ── ← ADD onClick */}
+                                        <DropdownMenuItem
+                                            className="flex items-center gap-2.5 cursor-pointer focus:bg-white/10 focus:text-white rounded-lg transition-colors py-2 px-3"
+                                            onClick={() => fileInputRef.current?.click()}
+                                        >
                                             <ImageIcon className="w-4 h-4 text-neon-blue" />
                                             <span className="text-[13px] font-medium">Add photo</span>
                                         </DropdownMenuItem>
@@ -185,7 +276,7 @@ export const InputPanel = ({
                             </div>
 
                             <div className="flex items-center gap-3">
-                                {/* Mic Button — Voice to Text */}
+                                {/* Mic Button */}
                                 <Tooltip>
                                     <TooltipTrigger asChild>
                                         <Button
@@ -199,10 +290,7 @@ export const InputPanel = ({
                                                     : "text-white/40 hover:text-neon-blue hover:bg-neon-blue/10"
                                             )}
                                         >
-                                            {isRecording
-                                                ? <MicOff className="w-3.5 h-3.5" />
-                                                : <Mic className="w-3.5 h-3.5" />
-                                            }
+                                            {isRecording ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
                                         </Button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" className="glass-dark border-white/10 text-xs text-white">
@@ -213,33 +301,32 @@ export const InputPanel = ({
                                 {/* Send / Stop Button */}
                                 <Button
                                     onClick={isLoading ? onStop : handleSend}
-                                    disabled={!isLoading && !input.trim()}
+                                    disabled={!isLoading && !canSend}
                                     className={cn(
                                         "h-9 w-9 rounded-full transition-all duration-300",
-                                        (input.trim() || isLoading)
+                                        (canSend || isLoading)
                                             ? "bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)] scale-105"
                                             : "bg-white/5 text-white/20 border border-white/10"
                                     )}
                                 >
-                                    {isLoading ? (
-                                        <Square className="w-3.5 h-3.5 fill-current" />
-                                    ) : (
-                                        <ArrowUp className="w-4 h-4" />
-                                    )}
+                                    {isLoading
+                                        ? <Square className="w-3.5 h-3.5 fill-current" />
+                                        : <ArrowUp className="w-4 h-4" />
+                                    }
                                 </Button>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div >
-        </div >
+            </div>
+        </div>
     );
 };
 
 const InputIconButton = ({ icon, label, onClick }: {
     icon: React.ReactNode;
     label: string;
-    onClick?: () => void
+    onClick?: () => void;
 }) => (
     <Tooltip>
         <TooltipTrigger asChild>
@@ -257,3 +344,18 @@ const InputIconButton = ({ icon, label, onClick }: {
         </TooltipContent>
     </Tooltip>
 );
+// ```
+
+// ---
+
+// ## Changes Made
+// ```
+// ✅ Added onSendImage, sessionId, history props
+// ✅ Hidden file input wired to "Add photo" menu item
+// ✅ Image preview shows above textarea with filename
+// ✅ ✕ button removes selected image
+// ✅ Paperclip icon turns blue when image is selected
+// ✅ Placeholder changes when image is selected
+// ✅ Send button activates when image selected (even no text)
+// ✅ canSend logic handles both text-only and image sends
+// ✅ FormData built and passed to onSendImage on send
