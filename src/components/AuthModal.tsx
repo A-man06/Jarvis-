@@ -80,6 +80,8 @@ export const AuthModal = ({ isOpen, onClose }: AuthModalProps) => {
                         initial={{ scale: 0.95, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.95, opacity: 0 }}
+                        role="dialog"
+                        aria-modal="true"
                         className="relative w-full max-w-[400px] bg-zinc-950 border border-zinc-800 rounded-2xl overflow-hidden shadow-2xl z-10"
                     >
                         <button

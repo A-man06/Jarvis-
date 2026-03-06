@@ -511,7 +511,11 @@ export const Sidebar = ({
             <AnimatePresence>
                 {voiceOpen && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md">
-                        <div className="w-[420px] h-[600px] bg-[#020617] border border-white/10 rounded-3xl flex flex-col relative overflow-hidden shadow-2xl">
+                        <div
+                            role="dialog"
+                            aria-modal="true"
+                            className="w-[420px] h-[600px] bg-[#020617] border border-white/10 rounded-3xl flex flex-col relative overflow-hidden shadow-2xl"
+                        >
                             <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
                                 <div className="flex items-center gap-3">
                                     <Mic className="w-5 h-5 text-neon-blue" />
