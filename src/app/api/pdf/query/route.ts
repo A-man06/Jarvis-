@@ -1,3 +1,4 @@
+import "@/lib/serverPolyfills";
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/app/lib/mongodb';
 import mongoose from 'mongoose';
@@ -16,12 +17,12 @@ async function getEmbedding(text: string): Promise<number[]> {
             }),
         });
         const data = await res.json();
-        
+
         if (!data.data || !data.data[0]) {
             console.error('[Embeddings Error] Invalid response:', data);
             throw new Error(data.error?.message || 'Failed to get embedding');
         }
-        
+
         return data.data[0].embedding;
     } catch (err) {
         console.error('[Embeddings fetch failed]', err);

@@ -1,10 +1,10 @@
+import "@/lib/serverPolyfills";
 import { NextRequest, NextResponse } from 'next/server';
 import admin from '@/lib/firebase-admin';
 import { connectDB } from '@/app/lib/mongodb';
 import Chat from '@/app/lib/models/ChatModel';
 import { validateFile, uploadFileToCloudinary, ACCEPTED_TYPES } from '@/lib/fileUpload';
-// Dynamically require pdf-parse inside the handler to prevent bundling issues in Next.js App Router
-const pdf = require('pdf-parse');
+// Dynamically required inside the handler to prevent bundling issues in Next.js App Router
 
 // ✅ Groq embeddings
 async function getEmbedding(text: string): Promise<number[]> {
@@ -21,12 +21,12 @@ async function getEmbedding(text: string): Promise<number[]> {
             }),
         });
         const data = await res.json();
-        
+
         if (!data.data || !data.data[0]) {
             console.error('[Embeddings Error] Invalid response:', data);
             throw new Error(data.error?.message || 'Failed to get embedding');
         }
-        
+
         return data.data[0].embedding;
     } catch (err) {
         console.error('[Embeddings fetch failed]', err);
@@ -87,6 +87,8 @@ export async function POST(req: NextRequest) {
         let pdfChunks = 0;
         if (isPDF) {
             try {
+                // Dynamically load pdf-parse only when needed to avoid SSR/Server issues
+                const pdf = require('pdf-parse');
                 // Parse PDF text
                 const pdfData = await pdf(buffer);
                 const fullText = pdfData.text;

@@ -1,4 +1,5 @@
 // app/api/chat/route.ts
+import "@/lib/serverPolyfills";
 import { NextRequest } from 'next/server';
 import { connectDB } from '@/app/lib/mongodb';
 import Chat from '@/app/lib/models/ChatModel';
