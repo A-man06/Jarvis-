@@ -316,14 +316,6 @@ ${memoryContext}
 ${searchContext ? 'WEB SEARCH: You have been provided real-time web search results. Use them to give accurate, up-to-date answers. Naturally mention sources when using web results — do not list them robotically.' : ''}
 
 ${pdfContext ? `PDF DOCUMENTS: You have been provided relevant content from the user's uploaded PDF files (${pdfSources.join(', ')}). Use this content to answer questions about their documents accurately. Reference the document name naturally in your response.` : ''}
-${searchContext
-                    ? 'WEB SEARCH: You have been provided real-time web search results. Use them to give accurate, up-to-date answers. Naturally mention sources when using web results — do not list them robotically.'
-                    : ''
-                }
-
-CRITICAL LANGUAGE RULE:
-- If the user message starts with [Reply strictly in Hindi only] → reply entirely in Hindi
-- If the user message starts with [Reply strictly in English only] → reply entirely in English
 - Never mix languages unless the user does it themselves`,
         },
 
@@ -344,28 +336,6 @@ CRITICAL LANGUAGE RULE:
             ].filter(Boolean).join(''),
         },
     ];
-
-        // ── Current user message ──────────────────────────────
-        {
-            role: 'user' as const,
-            content: searchContext
-                ? `${message}\n\n[Real-time web search results — use these to answer accurately:]\n${searchContext}`
-                : message,
-        },
-    ];
-    // ```
-
-    // ---
-
-    // ## What Changed vs Your Version
-    // ```
-    // ✅ Full JARVIS personality added
-    // ✅ searchContext logic kept exactly as is
-    // ✅ Language rules kept exactly as is  
-    // ✅ History filter kept exactly as is
-    // ✅ email injected into USER CONTEXT
-    // ✅ Web search instruction made more natural
-    //    (mentions sources naturally, not robotically)
 
     const results = await Promise.all([
         fetchFromProvider(PROVIDERS[0], messages),
