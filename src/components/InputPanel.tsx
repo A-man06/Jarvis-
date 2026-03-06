@@ -25,11 +25,11 @@ const ACCEPTED_DOC_TYPES = [
 ];
 
 const FILE_ICONS: Record<string, string> = {
-    'application/pdf':  '📄',
+    'application/pdf': '📄',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '📝',
-    'text/plain':       '📃',
-    'text/csv':         '📊',
-    'application/csv':  '📊',
+    'text/plain': '📃',
+    'text/csv': '📊',
+    'application/csv': '📊',
 };
 
 // ── Props ─────────────────────────────────────────────────
@@ -44,31 +44,31 @@ export const InputPanel = ({
     sessionId,
     history,
 }: {
-    openControls:  () => void;
-    onSend:        (content: string) => void;
-    onSendImage?:  (formData: FormData) => void;
-    onSendFile?:   (file: File) => void;        // ← NEW
-    isLoading:     boolean;
-    onVoiceChat?:  () => void;
-    onStop?:       () => void;
-    sessionId?:    string;
-    history?:      any[];
+    openControls: () => void;
+    onSend: (content: string) => void;
+    onSendImage?: (formData: FormData) => void;
+    onSendFile?: (file: File) => void;        // ← NEW
+    isLoading: boolean;
+    onVoiceChat?: () => void;
+    onStop?: () => void;
+    sessionId?: string;
+    history?: any[];
 }) => {
-    const [input, setInput]               = useState("");
-    const [isRecording, setIsRecording]   = useState(false);
-    const [interimText, setInterimText]   = useState("");
+    const [input, setInput] = useState("");
+    const [isRecording, setIsRecording] = useState(false);
+    const [interimText, setInterimText] = useState("");
 
     // ── Image states ──────────────────────────────────────
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
-    const [imagePreview, setImagePreview]   = useState<string | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
 
     // ── File states ───────────────────────────────────────
-    const [selectedFile, setSelectedFile]   = useState<File | null>(null);  // ← NEW
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);  // ← NEW
 
-    const textareaRef    = useRef<HTMLTextAreaElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const recognitionRef = useRef<any>(null);
-    const fileInputRef   = useRef<HTMLInputElement>(null);   // for images
-    const fileDocRef     = useRef<HTMLInputElement>(null);   // for docs  ← NEW
+    const fileInputRef = useRef<HTMLInputElement>(null);   // for images
+    const fileDocRef = useRef<HTMLInputElement>(null);   // for docs  ← NEW
 
     useEffect(() => {
         if (textareaRef.current) {
@@ -119,7 +119,7 @@ export const InputPanel = ({
 
     // ── Remove handlers ───────────────────────────────────
     const removeImage = () => { setSelectedImage(null); setImagePreview(null); };
-    const removeFile  = () => { setSelectedFile(null); };   // ← NEW
+    const removeFile = () => { setSelectedFile(null); };   // ← NEW
 
     // ── Send handler ──────────────────────────────────────
     const handleSend = () => {
@@ -136,11 +136,11 @@ export const InputPanel = ({
         // 2️⃣ Image
         if (selectedImage && onSendImage) {
             const formData = new FormData();
-            formData.append('image',     selectedImage);
-            formData.append('message',   input.trim() || 'What is in this image?');
+            formData.append('image', selectedImage);
+            formData.append('message', input.trim() || 'What is in this image?');
             formData.append('sessionId', sessionId || '');
-            formData.append('history',   JSON.stringify(
-                (history || []).slice(-6).map((m: any) => ({ role: m.role, content: m.content }))
+            formData.append('history', JSON.stringify(
+                (history || []).slice(-6).map((m: { role: string; content: string }) => ({ role: m.role, content: m.content }))
             ));
             onSendImage(formData);
             setSelectedImage(null);
@@ -180,24 +180,24 @@ export const InputPanel = ({
             return;
         }
 
-        const recognition          = new SpeechRecognition();
-        recognition.continuous     = true;
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.lang           = "en-US";
+        recognition.lang = "en-US";
 
         recognition.onresult = (event: any) => {
             let interim = "";
-            let final   = "";
+            let final = "";
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 const transcript = event.results[i][0].transcript;
                 if (event.results[i].isFinal) final += transcript + " ";
                 else interim += transcript;
             }
-            if (final)   { setInput(prev => prev + final); setInterimText(""); }
+            if (final) { setInput(prev => prev + final); setInterimText(""); }
             if (interim) { setInterimText(interim); }
         };
 
-        recognition.onend   = () => { setIsRecording(false); setInterimText(""); };
+        recognition.onend = () => { setIsRecording(false); setInterimText(""); };
         recognition.onerror = () => { setIsRecording(false); setInterimText(""); };
 
         recognitionRef.current = recognition;
@@ -435,8 +435,8 @@ export const InputPanel = ({
 
 // ── Icon Button ───────────────────────────────────────────
 const InputIconButton = ({ icon, label, onClick }: {
-    icon:     React.ReactNode;
-    label:    string;
+    icon: React.ReactNode;
+    label: string;
     onClick?: () => void;
 }) => (
     <Tooltip>

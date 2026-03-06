@@ -83,7 +83,6 @@ async function fetchFromProvider(
     messages: Message[]
 ): Promise<ProviderResult> {
     const start = Date.now();
-
     try {
         const res = await fetch(provider.url, {
             method: 'POST',
@@ -147,7 +146,7 @@ async function fetchFromCohere(apiKey: string, messages: Message[]): Promise<Pro
                 model: 'command-r-plus',
                 messages: [
                     ...(systemMsg ? [{ role: 'system', content: systemMsg }] : []),
-                    ...chatMessages
+                    ...chatMessages,
                 ],
                 max_tokens: 1024,
             }),
@@ -185,14 +184,11 @@ async function fetchWebSearch(query: string, baseUrl: string): Promise<string> {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query: cleanQuery }),
         });
-
         const data = await res.json();
         if (!data.results?.length) return '';
-
         const context = data.results
             .map((r: any, i: number) => `${i + 1}. ${r.title}\n${r.content}\nSource: ${r.url}`)
             .join('\n\n');
-
         console.log('[Web Search] Found results for:', cleanQuery);
         return context;
     } catch (err) {
@@ -201,9 +197,32 @@ async function fetchWebSearch(query: string, baseUrl: string): Promise<string> {
     }
 }
 
+// ✅ Fetch PDF context from MongoDB vector search
+async function fetchPDFContext(
+    question: string,
+    userId: string,
+    baseUrl: string
+): Promise<{ context: string; sources: string[] }> {
+    try {
+        const res = await fetch(`${baseUrl}/api/pdf/query`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question, userId }),
+        });
+        const data = await res.json();
+        return {
+            context: data.context || '',
+            sources: data.sources || [],
+        };
+    } catch (err) {
+        console.error('[PDF Context Failed]', err);
+        return { context: '', sources: [] };
+    }
+}
+
 export async function POST(req: NextRequest) {
 
-    // ─── Verify Firebase Token ──────────────────────────
+    // ── Verify Firebase Token ────────────────────────────
     const token = req.headers.get('Authorization')?.replace('Bearer ', '');
     if (!token) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -218,7 +237,6 @@ export async function POST(req: NextRequest) {
     } catch {
         return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401 });
     }
-    // ────────────────────────────────────────────────────
 
     const { message, sessionId, history = [] } = await req.json();
 
@@ -226,16 +244,21 @@ export async function POST(req: NextRequest) {
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const baseUrl = `${protocol}://${host}`;
 
-    // ✅ Run web search if needed
-    let searchContext = '';
-    if (needsWebSearch(message)) {
-        searchContext = await fetchWebSearch(message, baseUrl);
-    }
+    // ✅ Run web search + PDF context in parallel
+    const [searchContext, pdfResult] = await Promise.all([
+        needsWebSearch(message) ? fetchWebSearch(message, baseUrl) : Promise.resolve(''),
+        uid ? fetchPDFContext(message, uid, baseUrl) : Promise.resolve({ context: '', sources: [] }),
+    ]);
 
-const messages: Message[] = [
-    {
-        role: 'system',
-        content: `You are JARVIS — a highly intelligent, witty AI assistant inspired by Tony Stark's JARVIS.
+    const pdfContext = pdfResult.context;
+    const pdfSources = pdfResult.sources;
+
+    if (pdfContext) console.log('[PDF Context] Found from:', pdfSources);
+
+    const messages: Message[] = [
+        {
+            role: 'system',
+            content: `You are JARVIS — a highly intelligent, witty AI assistant inspired by Tony Stark's JARVIS.
 
 PERSONALITY:
 - Talk like a brilliant, confident friend — not a textbook or customer support bot
@@ -273,47 +296,31 @@ USER CONTEXT:
 - If they seem excited → match their energy
 - If they're confused → use simple analogies and examples
 
-${searchContext
-    ? 'WEB SEARCH: You have been provided real-time web search results. Use them to give accurate, up-to-date answers. Naturally mention sources when using web results — do not list them robotically.'
-    : ''
-}
+${searchContext ? 'WEB SEARCH: You have been provided real-time web search results. Use them to give accurate, up-to-date answers. Naturally mention sources when using web results — do not list them robotically.' : ''}
+
+${pdfContext ? `PDF DOCUMENTS: You have been provided relevant content from the user's uploaded PDF files (${pdfSources.join(', ')}). Use this content to answer questions about their documents accurately. Reference the document name naturally in your response.` : ''}
 
 CRITICAL LANGUAGE RULE:
 - If the user message starts with [Reply strictly in Hindi only] → reply entirely in Hindi
-- If the user message starts with [Reply strictly in English only] → reply entirely in English  
+- If the user message starts with [Reply strictly in English only] → reply entirely in English
 - Never mix languages unless the user does it themselves`,
-    },
-
-    // ── Conversation history ──────────────────────────────
-    ...history
-        .filter((m: any) => m.content !== message)
-        .slice(-8)
-        .map((m: any) => ({
-            role:    m.role,
-            content: m.content,
-        })),
-
-    // ── Current user message ──────────────────────────────
-    {
-        role: 'user' as const,
-        content: searchContext
-            ? `${message}\n\n[Real-time web search results — use these to answer accurately:]\n${searchContext}`
-            : message,
-    },
-];
-// ```
-
-// ---
-
-// ## What Changed vs Your Version
-// ```
-// ✅ Full JARVIS personality added
-// ✅ searchContext logic kept exactly as is
-// ✅ Language rules kept exactly as is  
-// ✅ History filter kept exactly as is
-// ✅ email injected into USER CONTEXT
-// ✅ Web search instruction made more natural
-//    (mentions sources naturally, not robotically)
+        },
+        ...history
+            .filter((m: any) => m.content !== message)
+            .slice(-8)
+            .map((m: any) => ({
+                role: m.role,
+                content: m.content,
+            })),
+        {
+            role: 'user' as const,
+            content: [
+                message,
+                searchContext ? `\n\n[Real-time web search results — use these to answer accurately:]\n${searchContext}` : '',
+                pdfContext ? `\n\n[Relevant content from uploaded PDFs (${pdfSources.join(', ')}):]:\n${pdfContext}` : '',
+            ].filter(Boolean).join(''),
+        },
+    ];
 
     const results = await Promise.all([
         fetchFromProvider(PROVIDERS[0], messages),
@@ -355,15 +362,12 @@ CRITICAL LANGUAGE RULE:
                     await new Promise(r => setTimeout(r, 15));
                 }
 
-                // ─── Save with userId + userEmail ────────
                 connectDB().then(() => {
                     Chat.findOneAndUpdate(
                         { sessionId, userId: uid },
                         {
                             $set: { userEmail: email },
-                            $setOnInsert: {
-                                title: message.slice(0, 50),
-                            },
+                            $setOnInsert: { title: message.slice(0, 50) },
                             $push: {
                                 messages: {
                                     $each: [
@@ -376,7 +380,6 @@ CRITICAL LANGUAGE RULE:
                         { upsert: true, returnOriginal: false }
                     ).catch(e => console.error("[MongoDB Save Error]", e));
                 }).catch(e => console.error("[MongoDB Conn Error]", e));
-                // ─────────────────────────────────────────
 
                 controller.enqueue(encoder.encode('data: [DONE]\n\n'));
                 controller.close();

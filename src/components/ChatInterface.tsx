@@ -31,6 +31,12 @@ interface Message {
     responseTime?: string;
 }
 
+interface ChatInterfaceProps {
+    messages: Message[];
+    isThinking: boolean;
+    onSuggestionClick?: (text: string) => void;
+}
+
 // ── File Icons Map ────────────────────────────────────────
 const FILE_ICONS: Record<string, string> = {
     pdf: '📄',
@@ -51,11 +57,7 @@ const THINKING_MESSAGES = [
     "Cross-referencing data...",
     "One moment...",
 ];// ── ChatInterface Component ───────────────────────────────
-export const ChatInterface = ({ messages, isThinking, onSuggestionClick }: {
-    messages: Message[];
-    isThinking: boolean;
-    onSuggestionClick?: (text: string) => void;
-}) => {
+export const ChatInterface = ({ messages, isThinking, onSuggestionClick }: ChatInterfaceProps) => {
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [autoScroll, setAutoScroll] = useState(true);
     const bottomRef = useRef<HTMLDivElement>(null);
