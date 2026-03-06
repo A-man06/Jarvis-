@@ -13,16 +13,16 @@ import { useAuth } from "@/context/AuthContext";
 
 export default function Home() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isControlsOpen, setIsControlsOpen]         = useState(false);
-  const [isAnalyticsOpen, setIsAnalyticsOpen]       = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen]         = useState(false);
-  const [isAuthOpen, setIsAuthOpen]                 = useState(false);
+  const [isControlsOpen, setIsControlsOpen] = useState(false);
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   const { user, loading: authLoading } = useAuth();
 
-  const [messages, setMessages]               = useState<any[]>([]);
-  const [isLoading, setIsLoading]             = useState(false);
-  const [sessionId, setSessionId]             = useState('');
+  const [messages, setMessages] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [sessionId, setSessionId] = useState('');
   const [chatHistoryList, setChatHistoryList] = useState<{ id: string; title: string; pinned?: boolean }[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -48,15 +48,15 @@ export default function Home() {
     if (!user) return;
     try {
       const token = await user.getIdToken();
-      const res   = await fetch('/api/history', {
+      const res = await fetch('/api/history', {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (data.sessions?.length > 0) {
         setChatHistoryList(
           data.sessions.map((s: any) => ({
-            id:     s.sessionId,
-            title:  s.title || 'New Chat',
+            id: s.sessionId,
+            title: s.title || 'New Chat',
             pinned: s.pinned || false,
           }))
         );
@@ -73,7 +73,7 @@ export default function Home() {
     setMessages([]);
     try {
       const token = await user.getIdToken();
-      const res   = await fetch(`/api/history?sessionId=${id}`, {
+      const res = await fetch(`/api/history?sessionId=${id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -81,7 +81,7 @@ export default function Home() {
         setMessages(
           data.messages.map((m: any, i: number) => ({
             ...m,
-            id:        m._id || `${id}-${i}`,
+            id: m._id || `${id}-${i}`,
             timestamp: new Date(m.timestamp).toLocaleTimeString([], {
               hour: '2-digit', minute: '2-digit',
             }),
@@ -106,9 +106,9 @@ export default function Home() {
     try {
       const token = await user.getIdToken();
       await fetch('/api/history', {
-        method:  'DELETE',
+        method: 'DELETE',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ sessionId: id }),
+        body: JSON.stringify({ sessionId: id }),
       });
       setChatHistoryList(prev => prev.filter(c => c.id !== id));
       if (id === sessionId) handleNewChat();
@@ -148,8 +148,8 @@ export default function Home() {
     });
 
     const userMsg = {
-      id:        Date.now().toString(),
-      role:      'user' as const,
+      id: Date.now().toString(),
+      role: 'user' as const,
       content,
       timestamp: timestampStr,
     };
@@ -173,21 +173,21 @@ export default function Home() {
     }
 
     try {
-      const token      = await user.getIdToken();
+      const token = await user.getIdToken();
       const apiHistory = messages.slice(-10).map(m => ({ role: m.role, content: m.content }));
 
       const res = await fetch('/api/chat', {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({ message: content, sessionId, history: apiHistory }),
-        signal:  controller.signal,
+        body: JSON.stringify({ message: content, sessionId, history: apiHistory }),
+        signal: controller.signal,
       });
 
       if (!res.ok) throw new Error(`API error: ${res.status}`);
 
-      const reader  = res.body!.getReader();
+      const reader = res.body!.getReader();
       const decoder = new TextDecoder();
-      let accumulated    = '';
+      let accumulated = '';
       let fullAIResponse = '';
 
       while (true) {
@@ -195,8 +195,8 @@ export default function Home() {
         if (done) break;
 
         accumulated += decoder.decode(value, { stream: true });
-        const lines  = accumulated.split('\n');
-        accumulated  = lines.pop() || '';
+        const lines = accumulated.split('\n');
+        accumulated = lines.pop() || '';
 
         for (const line of lines) {
           if (!line.trim() || !line.startsWith('data:')) continue;
@@ -209,7 +209,7 @@ export default function Home() {
               fullAIResponse += parsed.content;
               setMessages(prev => {
                 const updated = [...prev];
-                const last    = updated[updated.length - 1];
+                const last = updated[updated.length - 1];
                 if (last?.role === 'assistant') {
                   updated[updated.length - 1] = { ...last, content: fullAIResponse };
                 }
@@ -239,11 +239,11 @@ export default function Home() {
   const handleSendWithImage = async (formData: FormData) => {
     if (!user) { setIsAuthOpen(true); return; }
 
-    const message      = formData.get('message') as string;
-    const file         = formData.get('image') as File;
+    const message = formData.get('message') as string;
+    const file = formData.get('image') as File;
     const timestampStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const localPreview = URL.createObjectURL(file);
-    const userMsgId    = Date.now().toString();
+    const userMsgId = Date.now().toString();
 
     setMessages(prev => [
       ...prev,
@@ -267,17 +267,17 @@ export default function Home() {
       ));
 
       const res = await fetch('/api/vision', {
-        method:  'POST',
+        method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
-        body:    formData,
+        body: formData,
       });
 
       if (!res.ok) throw new Error(`Vision API error: ${res.status}`);
 
-      const reader  = res.body!.getReader();
+      const reader = res.body!.getReader();
       const decoder = new TextDecoder();
-      let accumulated   = '';
-      let fullResponse  = '';
+      let accumulated = '';
+      let fullResponse = '';
       let cloudinaryUrl = '';
 
       while (true) {
@@ -285,8 +285,8 @@ export default function Home() {
         if (done) break;
 
         accumulated += decoder.decode(value, { stream: true });
-        const lines  = accumulated.split('\n');
-        accumulated  = lines.pop() || '';
+        const lines = accumulated.split('\n');
+        accumulated = lines.pop() || '';
 
         for (const line of lines) {
           if (!line.trim() || !line.startsWith('data:')) continue;
@@ -307,7 +307,7 @@ export default function Home() {
               fullResponse += parsed.content;
               setMessages(prev => {
                 const updated = [...prev];
-                const last    = updated[updated.length - 1];
+                const last = updated[updated.length - 1];
                 if (last?.role === 'assistant') {
                   updated[updated.length - 1] = { ...last, content: fullResponse };
                 }
@@ -336,22 +336,22 @@ export default function Home() {
   const handleSendFile = async (file: File) => {
     if (!user) { setIsAuthOpen(true); return; }
 
-    const timestampStr  = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const timestampStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const uploadingMsgId = Date.now().toString();
 
     // Show uploading state immediately
     setMessages(prev => [
       ...prev,
       {
-        id:        uploadingMsgId,
-        role:      'user' as const,
-        content:   `Uploading ${file.name}...`,
+        id: uploadingMsgId,
+        role: 'user' as const,
+        content: `Uploading ${file.name}...`,
         timestamp: timestampStr,
       },
       {
-        id:        (Date.now() + 1).toString(),
-        role:      'assistant' as const,
-        content:   '⏳ Uploading your file, please wait...',
+        id: (Date.now() + 1).toString(),
+        role: 'assistant' as const,
+        content: '⏳ Uploading your file, please wait...',
         timestamp: timestampStr,
       },
     ]);
@@ -367,15 +367,15 @@ export default function Home() {
     }
 
     try {
-      const token    = await user.getIdToken();
+      const token = await user.getIdToken();
       const formData = new FormData();
-      formData.append('file',      file);
+      formData.append('file', file);
       formData.append('sessionId', sessionId);
 
-      const res  = await fetch('/api/upload', {
-        method:  'POST',
+      const res = await fetch('/api/upload', {
+        method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
-        body:    formData,
+        body: formData,
       });
 
       const data = await res.json();
@@ -389,13 +389,13 @@ export default function Home() {
         const userIdx = updated.findIndex(m => m.id === uploadingMsgId);
         if (userIdx !== -1) {
           updated[userIdx] = {
-            id:        uploadingMsgId,
-            role:      'user' as const,
-            content:   `Uploaded: ${data.fileName}`,
-            fileUrl:   data.url,
-            fileName:  data.fileName,
-            fileType:  data.fileType,
-            fileSize:  data.fileSize,
+            id: uploadingMsgId,
+            role: 'user' as const,
+            content: `Uploaded: ${data.fileName}`,
+            fileUrl: data.url,
+            fileName: data.fileName,
+            fileType: data.fileType,
+            fileSize: data.fileSize,
             timestamp: timestampStr,
           };
         }
@@ -459,7 +459,7 @@ export default function Home() {
 
       <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
         <div className="flex-1 flex flex-col relative overflow-hidden">
-          <ChatInterface messages={messages} isThinking={isLoading} />
+          <ChatInterface messages={messages} isThinking={isLoading} onSuggestionClick={(text) => handleSendMessage(text)} />
           <div className="mt-auto">
             <InputPanel
               onSend={handleSendMessage}
@@ -475,10 +475,10 @@ export default function Home() {
         </div>
       </div>
 
-      <AdvancedControls   isOpen={isControlsOpen}  onClose={() => setIsControlsOpen(false)} />
+      <AdvancedControls isOpen={isControlsOpen} onClose={() => setIsControlsOpen(false)} />
       <AnalyticsDashboard isOpen={isAnalyticsOpen} onClose={() => setIsAnalyticsOpen(false)} />
-      <SettingsModal      isOpen={isSettingsOpen}  onClose={() => setIsSettingsOpen(false)} />
-      <AuthModal          isOpen={isAuthOpen}      onClose={() => setIsAuthOpen(false)} />
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </main>
   );
 }
@@ -486,13 +486,10 @@ export default function Home() {
 
 // ---
 
-// ## What Changed
+// ## Summary of Changes
 // ```
-// ✅ handleSendFile function added (NEW)
-// ✅ syncHistory helper replaces duplicate refreshHistory calls
-// ✅ onSendFile={handleSendFile} passed to InputPanel
-// ✅ File upload shows instant "uploading..." state in chat
-// ✅ On success → replaced with real file card + AI acknowledgment
-// ✅ On error → shows error message in chat
-// ✅ Sidebar updates after successful upload
-// ✅ Auth guard on file upload (opens login modal)
+// ✅ api/chat/route.ts      → humanized system prompt    (1 change)
+// ✅ ChatInterface.tsx      → dynamic thinking messages  (1 hook + 1 JSX change)
+// ✅ ChatInterface.tsx      → suggestion buttons         (1 prop + 1 JSX block)
+// ✅ page.tsx               → pass suggestion handler    (1 prop)
+// ✅ onSendFile={handleSendFile} supported in main app loop

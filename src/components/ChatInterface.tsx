@@ -39,14 +39,50 @@ const FILE_ICONS: Record<string, string> = {
     csv: '📊',
 };
 
-// ── ChatInterface Component ───────────────────────────────
-export const ChatInterface = ({ messages, isThinking }: {
+// ── Thinking Messages ─────────────────────────────────────
+const THINKING_MESSAGES = [
+    "JARVIS is thinking...",
+    "Processing your request...",
+    "Analyzing...",
+    "Let me think about that...",
+    "Running calculations...",
+    "Accessing knowledge base...",
+    "Formulating response...",
+    "Cross-referencing data...",
+    "One moment...",
+];// ── ChatInterface Component ───────────────────────────────
+export const ChatInterface = ({ messages, isThinking, onSuggestionClick }: {
     messages: Message[];
     isThinking: boolean;
+    onSuggestionClick?: (text: string) => void;
 }) => {
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [autoScroll, setAutoScroll] = useState(true);
     const bottomRef = useRef<HTMLDivElement>(null);
+
+    const [thinkingMsg, setThinkingMsg] = useState(THINKING_MESSAGES[0]);
+
+    const SUGGESTIONS = [
+        { icon: "⚡", text: "What can you help me with?" },
+        { icon: "🧠", text: "Explain something complex simply" },
+        { icon: "💻", text: "Help me debug my code" },
+        { icon: "🚀", text: "What are the latest AI trends?" },
+        { icon: "📄", text: "Analyze a document for me" },
+        { icon: "🎯", text: "Help me plan my project" },
+    ];
+
+    useEffect(() => {
+        if (!isThinking) {
+            setThinkingMsg(THINKING_MESSAGES[0]);
+            return;
+        }
+        let i = 0;
+        const interval = setInterval(() => {
+            i = (i + 1) % THINKING_MESSAGES.length;
+            setThinkingMsg(THINKING_MESSAGES[i]);
+        }, 2000);
+        return () => clearInterval(interval);
+    }, [isThinking]);
 
     const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
         if (bottomRef.current) {
@@ -89,6 +125,26 @@ export const ChatInterface = ({ messages, isThinking }: {
                             <h1 className="text-7xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-white to-neon-purple drop-shadow-[0_0_30px_rgba(0,210,255,0.3)] mb-3">
                                 JARVIS
                             </h1>
+
+                            {onSuggestionClick && (
+                                <div className="grid grid-cols-2 gap-2 mt-8 w-full max-w-lg">
+                                    {SUGGESTIONS.map((s, i) => (
+                                        <motion.button
+                                            key={i}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: i * 0.1 }}
+                                            onClick={() => onSuggestionClick(s.text)}
+                                            className="flex items-center gap-2 p-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-neon-blue/30 transition-all text-left text-sm text-white/50 hover:text-white group"
+                                        >
+                                            <span className="text-lg group-hover:scale-110 transition-transform">
+                                                {s.icon}
+                                            </span>
+                                            <span className="text-xs leading-snug">{s.text}</span>
+                                        </motion.button>
+                                    ))}
+                                </div>
+                            )}
                         </motion.div>
                     ) : (
                         <motion.div
@@ -124,7 +180,7 @@ export const ChatInterface = ({ messages, isThinking }: {
                             <div className="flex flex-col gap-2">
                                 <p className="text-sm font-medium text-white/40 italic flex items-center gap-2">
                                     <Sparkles className="w-3 h-3 animate-spin" />
-                                    JARVIS is thinking...
+                                    {thinkingMsg}
                                 </p>
                                 <div className="flex gap-1">
                                     <motion.span

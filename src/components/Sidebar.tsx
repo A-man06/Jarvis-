@@ -22,7 +22,8 @@ import {
     User,
     Trash2,
     Pin,
-    Check
+    Check,
+    MoreHorizontal
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -352,7 +353,7 @@ export const Sidebar = ({
                                                 if (item.id === "new") onNewChat();
                                             }}
                                             className={cn(
-                                                "flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition-all group text-white/40 hover:text-white hover:bg-white/5",
+                                                "flex items-center gap-3 px-2 py-2 rounded-xl cursor-pointer transition-all group text-white/40 hover:text-white hover:bg-white/5",
                                                 isCollapsed && "justify-center px-0"
                                             )}
                                         >
@@ -368,14 +369,14 @@ export const Sidebar = ({
 
 
                         {!isCollapsed && (
-                            <div className="mt-14 pl-2 pr-4 flex flex-col flex-1 min-h-0">
-                                <p className="text-[13px] font-bold text-white uppercase tracking-[0.1em] mb-4">Recents</p>
-                                <div className="space-y-1 pb-4">
+                            <div className="mt-14 pl-0 pr-6 flex flex-col flex-1 min-h-0">
+                                <p className="text-[12px] font-bold text-white/40 uppercase tracking-[0.2em] mb-4 pl-3">Recents</p>
+                                <div className="space-y-0.5 pb-4">
                                     {chats.map(chat => (
                                         <div
                                             key={chat.id}
                                             className={cn(
-                                                "group flex items-center justify-between gap-2 text-[14px] text-white/50 hover:text-white cursor-pointer py-1.5 px-3 rounded-xl transition-all duration-300",
+                                                "group flex items-center justify-between gap-2 text-[14px] text-white/50 hover:text-white cursor-pointer py-1.5 px-2 rounded-xl transition-all duration-300",
                                                 chat.pinned ? "bg-white/5 text-white" : "hover:bg-white/5"
                                             )}
                                         >
@@ -419,37 +420,52 @@ export const Sidebar = ({
                                                         {chat.pinned && <Pin className="w-3 h-3 text-neon-blue rotate-45 fill-neon-blue shrink-0" />}
                                                         <span className="truncate text-white/50 group-hover:text-white transition-colors">{chat.title}</span>
                                                     </div>
-                                                    <div className="flex shrink-0 items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setEditingId(chat.id.toString());
-                                                                setEditTitle(chat.title);
-                                                            }}
-                                                            className="p-1 hover:text-neon-blue rounded-lg transition-colors"
-                                                            title="Rename"
-                                                        >
-                                                            <Edit2 className="w-3.5 h-3.5" />
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                if (onPinChat) onPinChat(chat.id.toString());
-                                                            }}
-                                                            className={cn("p-1 rounded-lg transition-colors hover:text-neon-blue", chat.pinned ? "text-neon-blue" : "text-white/30")}
-                                                            title={chat.pinned ? "Unpin" : "Pin"}
-                                                        >
-                                                            <Pin className={cn("w-3.5 h-3.5", chat.pinned ? "fill-neon-blue" : "")} />
-                                                        </button>
-                                                        {onDeleteChat && (
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id.toString()); }}
-                                                                className="p-1 hover:text-red-400 rounded-lg transition-colors"
-                                                                title="Delete"
-                                                            >
-                                                                <Trash2 className="w-3.5 h-3.5" />
-                                                            </button>
-                                                        )}
+                                                    <div className="flex shrink-0 items-center opacity-0 group-hover:opacity-100 transition-all duration-300">
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <button
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    className="p-1 text-white/30 hover:text-white rounded-lg transition-colors"
+                                                                >
+                                                                    <MoreHorizontal className="w-4 h-4" />
+                                                                </button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end" className="w-40 glass-dark border-white/10 text-white p-1">
+                                                                <DropdownMenuItem
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setEditingId(chat.id.toString());
+                                                                        setEditTitle(chat.title);
+                                                                    }}
+                                                                    className="flex items-center gap-2 cursor-pointer focus:bg-white/10"
+                                                                >
+                                                                    <Edit2 className="w-3.5 h-3.5 text-neon-blue" />
+                                                                    <span>Rename</span>
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (onPinChat) onPinChat(chat.id.toString());
+                                                                    }}
+                                                                    className="flex items-center gap-2 cursor-pointer focus:bg-white/10"
+                                                                >
+                                                                    <Pin className={cn("w-3.5 h-3.5 text-purple-400", chat.pinned && "fill-purple-400")} />
+                                                                    <span>{chat.pinned ? "Unpin Chat" : "Pin Chat"}</span>
+                                                                </DropdownMenuItem>
+                                                                {onDeleteChat && (
+                                                                    <DropdownMenuItem
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            onDeleteChat(chat.id.toString());
+                                                                        }}
+                                                                        className="flex items-center gap-2 cursor-pointer focus:bg-red-500/20 text-red-400 focus:text-red-400"
+                                                                    >
+                                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                                        <span>Delete</span>
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
                                                     </div>
                                                 </>
                                             )}
