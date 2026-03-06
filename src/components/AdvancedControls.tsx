@@ -45,6 +45,8 @@ export const AdvancedControls = ({ isOpen, onClose }: { isOpen: boolean; onClose
                         animate={{ x: 0 }}
                         exit={{ x: "100%" }}
                         transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                        role="dialog"
+                        aria-modal="true"
                         className="fixed top-0 right-0 h-full w-[350px] glass-dark border-l border-white/10 z-[70] shadow-2xl flex flex-col"
                     >
                         <div className="p-6 border-b border-white/10 flex items-center justify-between">

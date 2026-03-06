@@ -70,6 +70,49 @@ export const InputPanel = ({
     const fileInputRef = useRef<HTMLInputElement>(null);   // for images
     const fileDocRef = useRef<HTMLInputElement>(null);   // for docs  ← NEW
 
+    // ── Auto-focus & Global Type-to-Chat ────────────────────
+    useEffect(() => {
+        // 1. Auto-focus on mount
+        const timeout = setTimeout(() => {
+            textareaRef.current?.focus();
+        }, 500); // Slight delay for smoother page entry
+
+        // 2. Global keydown listener
+        const handleGlobalKeyDown = (e: KeyboardEvent) => {
+            // Ignore if user is already typing in an input, textarea or content-editable
+            const activeElement = document.activeElement;
+            const isInputFocused =
+                activeElement instanceof HTMLInputElement ||
+                activeElement instanceof HTMLTextAreaElement ||
+                (activeElement as HTMLElement)?.isContentEditable ||
+                activeElement?.getAttribute('role') === 'textbox';
+
+            if (isInputFocused) return;
+
+            // Search for visible modals or overlays that should block redirection
+            const modalOpen = !!document.querySelector('[role="dialog"], [data-state="open"]');
+            if (modalOpen) return;
+
+            // Ignore modifier shortcuts (Cmd+C, Ctrl+V, etc.)
+            if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+            // Focus for printable characters (length 1)
+            // Or special characters like Backspace/Delete to allow starting with a correction
+            const isPrintableKey = e.key.length === 1;
+            const isCorrectionKey = e.key === "Backspace" || e.key === "Delete";
+
+            if (isPrintableKey || isCorrectionKey) {
+                textareaRef.current?.focus();
+            }
+        };
+
+        window.addEventListener("keydown", handleGlobalKeyDown);
+        return () => {
+            window.removeEventListener("keydown", handleGlobalKeyDown);
+            clearTimeout(timeout);
+        };
+    }, []);
+
     useEffect(() => {
         if (textareaRef.current) {
             textareaRef.current.style.height = "auto";

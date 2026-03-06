@@ -40,6 +40,8 @@ export const SettingsModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: (
                         initial={{ scale: 0.9, y: 20 }}
                         animate={{ scale: 1, y: 0 }}
                         exit={{ scale: 0.9, y: 20 }}
+                        role="dialog"
+                        aria-modal="true"
                         className="w-full max-w-2xl glass-dark border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
                     >
                         <div className="p-6 border-b border-white/10 flex items-center justify-between">
