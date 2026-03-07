@@ -5,25 +5,23 @@ import mongoose from 'mongoose';
 
 async function getEmbedding(text: string): Promise<number[]> {
     try {
-        const res = await fetch('https://api.groq.com/openai/v1/embeddings', {
+        const res = await fetch('https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${process.env.GROQ_API_KEY!}`,
+                Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY!}`,
             },
-            body: JSON.stringify({
-                model: 'nomic-embed-text-v1.5',
-                input: text,
-            }),
+            body: JSON.stringify({ inputs: text }),
         });
         const data = await res.json();
 
-        if (!data.data || !data.data[0]) {
-            console.error('[Embeddings Error] Invalid response:', data);
-            throw new Error(data.error?.message || 'Failed to get embedding');
+        // HuggingFace returns the vector directly for this model
+        if (!Array.isArray(data)) {
+            console.error('[Embeddings Error] Unexpected response:', data);
+            throw new Error(data.error || 'Failed to get embedding from HuggingFace');
         }
 
-        return data.data[0].embedding;
+        return data;
     } catch (err) {
         console.error('[Embeddings fetch failed]', err);
         throw err;

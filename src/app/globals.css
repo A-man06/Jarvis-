@@ -246,4 +246,9 @@
   .no-scrollbar [data-radix-scroll-area-scrollbar] {
     display: none !important;
   }
+
+  /* Force smooth scrolling for Radix only when not manually holding keys */
+  [data-radix-scroll-area-viewport] {
+    transition: scroll-behavior 0.3s ease;
+  }
 }

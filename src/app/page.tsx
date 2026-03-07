@@ -11,6 +11,7 @@ const AdvancedControls = dynamic(() => import("@/components/AdvancedControls").t
 const AnalyticsDashboard = dynamic(() => import("@/components/AnalyticsDashboard").then(m => m.AnalyticsDashboard), { ssr: false });
 const SettingsModal = dynamic(() => import("@/components/SettingsModal").then(m => m.SettingsModal), { ssr: false });
 const AuthModal = dynamic(() => import("@/components/AuthModal").then(m => m.AuthModal), { ssr: false });
+const VoiceModal = dynamic(() => import("@/components/VoiceModal").then(m => m.VoiceModal), { ssr: false });
 import { useAuth } from "@/context/AuthContext";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,63 @@ export default function Home() {
   const [sessionId, setSessionId] = useState('');
   const [chatHistoryList, setChatHistoryList] = useState<{ id: string; title: string; pinned?: boolean }[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // ── Voice State ──────────────────────────────────────────
+  const [isVoiceOpen, setIsVoiceOpen] = useState(false);
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
+  const [interimTranscript, setInterimTranscript] = useState("");
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!isVoiceRecording) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+      setInterimTranscript("");
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    let finalTranscript = "";
+
+    recognition.onresult = (event: any) => {
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript + " ";
+        } else {
+          interim += transcript;
+        }
+      }
+      setInterimTranscript(interim);
+      if (finalTranscript.trim() && !isVoiceRecording) {
+         // This is handled on stop usually, but let's keep it clean
+      }
+    };
+
+    recognition.onend = () => {
+      if (finalTranscript.trim()) {
+        handleSendMessage(finalTranscript.trim());
+      }
+      setIsVoiceRecording(false);
+    };
+
+    recognition.start();
+    recognitionRef.current = recognition;
+
+    return () => {
+      recognition.stop();
+    };
+  }, [isVoiceRecording]);
 
   // ── Auto-collapse sidebar on tablet/mobile size ───────────
   useEffect(() => {
@@ -153,6 +211,60 @@ export default function Home() {
       abortControllerRef.current = null;
     }
   };
+
+  // ── Global Keyboard Shortcuts ─────────────────────────────
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // (1) New Chat (Ctrl+K)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        handleNewChat();
+        return;
+      }
+
+      // (2) Previous Chat (Ctrl+H)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'h') {
+        e.preventDefault();
+        if (chatHistoryList.length > 0) {
+          const currentIndex = chatHistoryList.findIndex(c => c.id === sessionId);
+          const nextIndex = (currentIndex + 1) % chatHistoryList.length;
+          const nextChat = chatHistoryList[nextIndex];
+          handleSelectChat(nextChat.id, nextChat.title);
+        }
+        return;
+      }
+
+      // (3) Toggle Sidebar (Ctrl+S)
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        setIsSidebarCollapsed(prev => !prev);
+        return;
+      }
+
+      // (4) Arrow Key Scrolling
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        const scrollArea = document.querySelector('#main-chat-scroll-area [data-radix-scroll-area-viewport]');
+        if (scrollArea) {
+          e.preventDefault();
+          
+          if (e.repeat) {
+            // Sustained press: Continuous, high-speed fluid scroll (behavior 'auto')
+            // Using smaller step but NO throttle results in native-like rapid glide
+            const scrollStep = e.key === 'ArrowUp' ? -40 : 40;
+            scrollArea.scrollBy({ top: scrollStep, behavior: 'auto' });
+          } else {
+            // Single tap: Premium liquid smooth scroll (behavior 'smooth')
+            // Using larger step for navigation efficiency
+            const scrollStep = e.key === 'ArrowUp' ? -250 : 250;
+            scrollArea.scrollBy({ top: scrollStep, behavior: 'smooth' });
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sessionId, chatHistoryList, isSidebarCollapsed]);
 
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
@@ -420,10 +532,16 @@ export default function Home() {
               onSendImage={handleSendWithImage}
               onSendFile={handleSendFile}
               isLoading={isLoading}
+              onVoiceChat={() => {
+                setIsVoiceOpen(true);
+                setIsVoiceRecording(!isVoiceRecording);
+              }}
               onStop={handleStopGeneration}
               sessionId={sessionId}
               history={messages}
               openControls={() => setIsControlsOpen(true)}
+              isVoiceRecording={isVoiceRecording}
+              interimTranscript={interimTranscript}
             />
           </div>
         </div>
@@ -433,6 +551,24 @@ export default function Home() {
       <AnalyticsDashboard isOpen={isAnalyticsOpen} onClose={() => setIsAnalyticsOpen(false)} />
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+
+      <VoiceModal
+        isOpen={isVoiceOpen}
+        onClose={() => {
+          setIsVoiceOpen(false);
+          setIsVoiceRecording(false);
+        }}
+        isVoiceRecording={isVoiceRecording}
+        isSpeaking={isLoading}
+        voiceLoading={isLoading}
+        voiceMessages={messages.slice(-10).map(m => ({
+          role: m.role,
+          content: m.content,
+          provider: m.role === 'assistant' ? 'Groq' : undefined // Example provider
+        }))}
+        onToggleRecording={() => setIsVoiceRecording(!isVoiceRecording)}
+        interimTranscript={interimTranscript}
+      />
     </main>
   );
 }

@@ -37,26 +37,28 @@ export const InputPanel = ({
     openControls,
     onSend,
     onSendImage,
-    onSendFile,         // ← NEW
+    onSendFile,
     isLoading,
     onVoiceChat,
     onStop,
     sessionId,
     history,
+    isVoiceRecording = false,
+    interimTranscript = "",
 }: {
     openControls: () => void;
     onSend: (content: string) => void;
     onSendImage?: (formData: FormData) => void;
-    onSendFile?: (file: File) => void;        // ← NEW
+    onSendFile?: (file: File) => void;
     isLoading: boolean;
     onVoiceChat?: () => void;
     onStop?: () => void;
     sessionId?: string;
     history?: any[];
+    isVoiceRecording?: boolean;
+    interimTranscript?: string;
 }) => {
     const [input, setInput] = useState("");
-    const [isRecording, setIsRecording] = useState(false);
-    const [interimText, setInterimText] = useState("");
 
     // ── Image states ──────────────────────────────────────
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -73,12 +75,17 @@ export const InputPanel = ({
     // ── Auto-focus & Global Type-to-Chat ────────────────────
     useEffect(() => {
         // 1. Auto-focus on mount
-        const timeout = setTimeout(() => {
-            textareaRef.current?.focus();
-        }, 500); // Slight delay for smoother page entry
+        textareaRef.current?.focus();
 
         // 2. Global keydown listener
         const handleGlobalKeyDown = (e: KeyboardEvent) => {
+            // New Shortcut: Ctrl+M for Voice Chat
+            if ((e.ctrlKey || e.metaKey) && e.key === 'm') {
+                e.preventDefault();
+                onVoiceChat?.();
+                return;
+            }
+
             // Ignore if user is already typing in an input, textarea or content-editable
             const activeElement = document.activeElement;
             const isInputFocused =
@@ -109,16 +116,20 @@ export const InputPanel = ({
         window.addEventListener("keydown", handleGlobalKeyDown);
         return () => {
             window.removeEventListener("keydown", handleGlobalKeyDown);
-            clearTimeout(timeout);
         };
     }, []);
+
+    // Also focus when session changes
+    useEffect(() => {
+        textareaRef.current?.focus();
+    }, [sessionId]);
 
     useEffect(() => {
         if (textareaRef.current) {
             textareaRef.current.style.height = "auto";
             textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
         }
-    }, [input, interimText]);
+    }, [input, interimTranscript]);
 
     // ── Image selection ───────────────────────────────────
     const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -206,46 +217,9 @@ export const InputPanel = ({
     };
 
     // ── Voice to Text ─────────────────────────────────────
+    // ── Voice to Text ─────────────────────────────────────
     const toggleRecording = () => {
-        const SpeechRecognition =
-            (window as any).SpeechRecognition ||
-            (window as any).webkitSpeechRecognition;
-
-        if (!SpeechRecognition) {
-            alert("Speech recognition not supported. Please use Chrome or Edge.");
-            return;
-        }
-
-        if (isRecording) {
-            recognitionRef.current?.stop();
-            setIsRecording(false);
-            setInterimText("");
-            return;
-        }
-
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = "en-US";
-
-        recognition.onresult = (event: any) => {
-            let interim = "";
-            let final = "";
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-                const transcript = event.results[i][0].transcript;
-                if (event.results[i].isFinal) final += transcript + " ";
-                else interim += transcript;
-            }
-            if (final) { setInput(prev => prev + final); setInterimText(""); }
-            if (interim) { setInterimText(interim); }
-        };
-
-        recognition.onend = () => { setIsRecording(false); setInterimText(""); };
-        recognition.onerror = () => { setIsRecording(false); setInterimText(""); };
-
-        recognitionRef.current = recognition;
-        recognition.start();
-        setIsRecording(true);
+        onVoiceChat?.();
     };
 
     // ── canSend logic ─────────────────────────────────────
@@ -278,7 +252,7 @@ export const InputPanel = ({
             <div className="max-w-4xl mx-auto relative">
                 <div className={cn(
                     "relative glass-dark rounded-2xl border p-1 shadow-2xl transition-all duration-300",
-                    isRecording
+                    isVoiceRecording
                         ? "border-red-500/60 shadow-[0_0_25px_rgba(239,68,68,0.3)] ring-1 ring-red-500/30"
                         : "border-white/20 hover:border-neon-blue/50 hover:shadow-[0_0_25px_rgba(0,210,255,0.2)] focus-within:border-neon-blue/50 focus-within:ring-1 focus-within:ring-neon-blue/30 shadow-[0_0_15px_rgba(0,210,255,0.08)]"
                 )}>
@@ -360,9 +334,9 @@ export const InputPanel = ({
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
                             placeholder={
-                                isRecording
-                                    ? interimText
-                                        ? `🔴 ${interimText}...`
+                                isVoiceRecording
+                                    ? interimTranscript
+                                        ? `🔴 ${interimTranscript}...`
                                         : "🔴 Listening..."
                                     : selectedFile
                                         ? "Add a message or press send to upload..."
@@ -375,9 +349,9 @@ export const InputPanel = ({
                         />
 
                         {/* Live interim voice text */}
-                        {isRecording && interimText && (
+                        {isVoiceRecording && interimTranscript && (
                             <div className="px-3.5 pb-1 text-sm text-white/50 italic">
-                                {interimText}
+                                {interimTranscript}
                                 <span className="animate-pulse">|</span>
                             </div>
                         )}
@@ -432,22 +406,14 @@ export const InputPanel = ({
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            onClick={toggleRecording}
-                                            className={cn(
-                                                "h-8 w-8 rounded-full transition-all duration-300",
-                                                isRecording
-                                                    ? "text-red-400 bg-red-500/20 hover:bg-red-500/30 animate-pulse"
-                                                    : "text-white/40 hover:text-neon-blue hover:bg-neon-blue/10"
-                                            )}
+                                            onClick={onVoiceChat}
+                                            className="h-8 w-8 rounded-full text-white/40 hover:text-neon-blue hover:bg-neon-blue/10 transition-all duration-300"
                                         >
-                                            {isRecording
-                                                ? <MicOff className="w-3.5 h-3.5" />
-                                                : <Mic className="w-3.5 h-3.5" />
-                                            }
+                                            <Mic className="w-3.5 h-3.5" />
                                         </Button>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" className="glass-dark border-white/10 text-xs text-white">
-                                        {isRecording ? "Stop Recording" : "Voice to Text"}
+                                        Voice Chat Mode
                                     </TooltipContent>
                                 </Tooltip>
 

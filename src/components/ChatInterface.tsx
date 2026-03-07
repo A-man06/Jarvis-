@@ -100,7 +100,13 @@ export const ChatInterface = ({ messages, isThinking, onSuggestionClick }: ChatI
         }
     }, [messages, isThinking, autoScroll]);
 
+    const lastScrollCheck = useRef(0);
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+        const now = Date.now();
+        // Only trigger state updates every 100ms during manual scrolling for better perf
+        if (now - lastScrollCheck.current < 100) return;
+        lastScrollCheck.current = now;
+
         const target = e.currentTarget;
         const isAtBottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 100;
         setAutoScroll(isAtBottom);
@@ -110,6 +116,7 @@ export const ChatInterface = ({ messages, isThinking, onSuggestionClick }: ChatI
     return (
         <div className="flex-1 flex flex-col min-w-0 bg-transparent overflow-hidden relative">
             <ScrollArea
+                id="main-chat-scroll-area"
                 className="flex-1 px-4 lg:px-8 py-6 no-scrollbar"
                 onScroll={handleScroll}
             >
